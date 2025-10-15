@@ -76,6 +76,7 @@ jobs:
             echo "BB_NUMBER_THREADS = \"${threads}\""
             echo "PARALLEL_MAKE = \"${parallel}\""
             echo "XZ_DEFAULTS = \"${xz}\""
+            echo "BB_DISKMON_DIRS = \"\""
           } > "${YOCTO_BUILD_DIR}/conf/auto.conf"
 
       - name: Show disk availability
@@ -114,6 +115,7 @@ jobs:
             echo "BB_NUMBER_THREADS = \"${threads}\""
             echo "PARALLEL_MAKE = \"${parallel}\""
             echo "XZ_DEFAULTS = \"${xz}\""
+            echo "BB_DISKMON_DIRS = \"\""
           } > "${YOCTO_BUILD_DIR}/conf/auto.conf"
 
       - name: Restore downloads cache
@@ -182,6 +184,7 @@ jobs:
             echo "BB_NUMBER_THREADS = \"${threads}\""
             echo "PARALLEL_MAKE = \"${parallel}\""
             echo "XZ_DEFAULTS = \"${xz}\""
+            echo "BB_DISKMON_DIRS = \"\""
           } > "${YOCTO_BUILD_DIR}/conf/auto.conf"
 
       - name: Restore downloads cache
