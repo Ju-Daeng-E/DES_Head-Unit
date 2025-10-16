@@ -47,6 +47,9 @@ jobs:
     runs-on: [self-hosted, Linux, X64]
     timeout-minutes: 90
     steps:
+      - name: Prepare runner home
+        run: mkdir -p "$HOME"
+
       - name: Checkout sources
         uses: actions/checkout@v4
         with:
@@ -95,6 +98,9 @@ jobs:
     runs-on: [self-hosted, Linux, X64]
     timeout-minutes: 720
     steps:
+      - name: Prepare runner home
+        run: mkdir -p "$HOME"
+
       - name: Checkout sources
         uses: actions/checkout@v4
         with:
@@ -164,6 +170,9 @@ jobs:
     runs-on: [self-hosted, Linux, X64]
     timeout-minutes: 240
     steps:
+      - name: Prepare runner home
+        run: mkdir -p "$HOME"
+
       - name: Checkout sources
         uses: actions/checkout@v4
         with:
