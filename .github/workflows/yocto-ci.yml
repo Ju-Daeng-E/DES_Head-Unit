@@ -44,7 +44,7 @@ jobs:
 
   metadata:
     name: Metadata Sanity
-    runs-on: ubuntu-22.04
+    runs-on: [self-hosted, Linux, X64]
     timeout-minutes: 90
     steps:
       - name: Checkout sources
@@ -92,7 +92,7 @@ jobs:
   full-build:
     name: Full Image Build
     if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.full_build == 'true' }}
-    runs-on: self-hosted
+    runs-on: [self-hosted, Linux, X64]
     timeout-minutes: 720
     steps:
       - name: Checkout sources
@@ -161,7 +161,7 @@ jobs:
     name: Qt Headunit Build
     needs: changes
     if: ${{ github.event_name == 'workflow_dispatch' || needs.changes.outputs.qt_headunit == 'true' }}
-    runs-on: ubuntu-22.04
+    runs-on: [self-hosted, Linux, X64]
     timeout-minutes: 240
     steps:
       - name: Checkout sources
