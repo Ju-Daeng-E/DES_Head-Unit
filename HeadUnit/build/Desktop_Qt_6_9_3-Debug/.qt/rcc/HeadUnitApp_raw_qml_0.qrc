@@ -1,0 +1,7 @@
+<RCC>
+  <qresource prefix="/qt/qml/HeadUnit/">
+    <file alias="ui/main.qml">/home/jeongmin/yocto/work/DES_Head-Unit/HeadUnit/ui/main.qml</file>
+    <file alias="ui/pages/music.qml">/home/jeongmin/yocto/work/DES_Head-Unit/HeadUnit/ui/pages/music.qml</file>
+  </qresource>
+</RCC>
+

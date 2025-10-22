@@ -1,0 +1,76 @@
+cmake_minimum_required(VERSION 3.21)
+
+project(HeadUnit
+    VERSION 0.1.0
+    LANGUAGES CXX
+)
+
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+
+set(CMAKE_AUTOMOC ON)
+set(CMAKE_AUTORCC ON)
+set(CMAKE_AUTOUIC ON)
+
+find_package(Qt6 6.5 REQUIRED COMPONENTS
+    Core
+    Gui
+    Widgets
+    Qml
+    Quick
+    Multimedia
+)
+
+qt_standard_project_setup()
+qt_policy(SET QTP0001 NEW)
+qt_policy(SET QTP0004 NEW)
+
+set(HEADUNIT_SOURCES
+    src/main.cpp
+    src/HeadUnit.cpp
+    src/ViewModel.cpp
+    src/backend/music/music_player.cpp
+)
+
+set(HEADUNIT_HEADERS
+    src/HeadUnit.h
+    src/ViewModel.h
+    src/backend/music/music_player.h
+)
+
+qt_add_executable(HeadUnitApp
+    ${HEADUNIT_SOURCES}
+    ${HEADUNIT_HEADERS}
+)
+
+qt_add_qml_module(HeadUnitApp
+    URI HeadUnit
+    VERSION 1.0
+    QML_FILES
+        ui/main.qml
+        ui/pages/music.qml
+    SOURCES
+        ${HEADUNIT_SOURCES}
+        ${HEADUNIT_HEADERS}
+)
+
+target_include_directories(HeadUnitApp
+    PRIVATE
+        "${CMAKE_CURRENT_SOURCE_DIR}/src"
+)
+
+target_link_libraries(HeadUnitApp
+    PRIVATE
+        Qt6::Core
+        Qt6::Gui
+        Qt6::Widgets
+        Qt6::Qml
+        Qt6::Quick
+        Qt6::Multimedia
+)
+
+install(TARGETS HeadUnitApp
+    BUNDLE DESTINATION .
+    RUNTIME DESTINATION bin
+)

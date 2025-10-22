@@ -1,0 +1,5 @@
+module HeadUnit
+typeinfo HeadUnitApp.qmltypes
+prefer :/qt/qml/HeadUnit/
+depends QtQuick
+

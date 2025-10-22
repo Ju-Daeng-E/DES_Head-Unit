@@ -1,0 +1,7 @@
+<RCC>
+  <qresource prefix="/qt/qml/HeadUnit/">
+    <file alias="ui/qmldir">/home/jeongmin/yocto/work/DES_Head-Unit/HeadUnit/build/Desktop_Qt_6_9_3-Debug/HeadUnit/ui/qmldir</file>
+    <file alias="ui/pages/qmldir">/home/jeongmin/yocto/work/DES_Head-Unit/HeadUnit/build/Desktop_Qt_6_9_3-Debug/HeadUnit/ui/pages/qmldir</file>
+  </qresource>
+</RCC>
+
