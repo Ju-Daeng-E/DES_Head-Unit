@@ -49,7 +49,9 @@ qt_add_qml_module(HeadUnitApp
     VERSION 1.0
     QML_FILES
         ui/main.qml
-        ui/pages/music.qml
+        ui/pages/HomeScreen.qml
+        ui/pages/MusicScreen.qml
+        ui/pages/AmbientScreen.qml
     SOURCES
         ${HEADUNIT_SOURCES}
         ${HEADUNIT_HEADERS}
