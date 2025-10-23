@@ -18,7 +18,7 @@ env:
   YOCTO_BUILD_DIR: build-des
   YOCTO_IMAGE: des-image
   YOCTO_MACHINE: raspberrypi4-64
-  YOCTO_CACHE_DIR: ${{ github.workspace }}/.yocto-cache
+  YOCTO_CACHE_DIR: /home/jeongmin/des-esdk
 
 jobs:
   changes:
@@ -26,6 +26,7 @@ jobs:
     runs-on: ubuntu-22.04
     outputs:
       qt_headunit: ${{ steps.filter.outputs.qt_headunit }}
+      qt_app: ${{ steps.filter.outputs.qt_app }} #Qt 앱 변경도 감지하도록
     steps:
       - name: Checkout for diff
         uses: actions/checkout@v4
@@ -40,6 +41,9 @@ jobs:
             qt_headunit:
               - 'meta-custom/meta-app/**'
               - 'meta-custom/meta-env/recipes-core/images/des-image.bb'
+              - '.github/workflows/yocto-ci.yml'
+            qt_app:
+              - 'HeadUnit/**'
               - '.github/workflows/yocto-ci.yml'
 
   metadata:
@@ -162,6 +166,26 @@ jobs:
             ${{ env.YOCTO_BUILD_DIR }}/tmp*/deploy/images/${{ env.YOCTO_MACHINE }}/*.wic*
             ${{ env.YOCTO_BUILD_DIR }}/tmp*/deploy/images/${{ env.YOCTO_MACHINE }}/*.sdimg
           if-no-files-found: warn
+
+  #eSDK로 CMake 빌드만 빠르게 확인 Qt 앱 빌드 추가
+  qt-app-cmake:
+    name: Qt App CMake Build
+    needs: changes
+    if: ${{ github.event_name == 'workflow_dispatch' || needs.changes.outputs.qt_app == 'true' }}
+    runs-on: [self-hosted, Linux, X64]
+    timeout-minutes: 60
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+
+      - name: Configure & build with eSDK toolchain
+        shell: bash
+        run: |
+          source /home/jeongmin/des-esdk/environment-setup-cortexa72-oe-linux
+          cmake -S HeadUnit -B headunit-build \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_TOOLCHAIN_FILE=${OECORE_NATIVE_SYSROOT}/usr/share/cmake/OEToolchainConfig.cmake
+          cmake --build headunit-build -- -j"$(nproc || echo 2)"
 
   qt-headunit:
     name: Qt Headunit Build
