@@ -20,6 +20,7 @@ find_package(Qt6 6.5 REQUIRED COMPONENTS
     Qml
     Quick
     Multimedia
+    Network
 )
 
 qt_standard_project_setup()
@@ -31,12 +32,14 @@ set(HEADUNIT_SOURCES
     src/HeadUnit.cpp
     src/ViewModel.cpp
     src/backend/music/music_player.cpp
+    src/backend/weather/weather_service.cpp
 )
 
 set(HEADUNIT_HEADERS
     src/HeadUnit.h
     src/ViewModel.h
     src/backend/music/music_player.h
+    src/backend/weather/weather_service.h
 )
 
 qt_add_executable(HeadUnitApp
@@ -49,9 +52,13 @@ qt_add_qml_module(HeadUnitApp
     VERSION 1.0
     QML_FILES
         ui/main.qml
+        ui/components/BackButton.qml
+        ui/components/GearSelector.qml
+        ui/components/VehicleInfoWidget.qml
         ui/pages/HomeScreen.qml
         ui/pages/MusicScreen.qml
         ui/pages/AmbientScreen.qml
+        ui/pages/ClimateScreen.qml
     SOURCES
         ${HEADUNIT_SOURCES}
         ${HEADUNIT_HEADERS}
@@ -70,6 +77,7 @@ target_link_libraries(HeadUnitApp
         Qt6::Qml
         Qt6::Quick
         Qt6::Multimedia
+        Qt6::Network
 )
 
 install(TARGETS HeadUnitApp

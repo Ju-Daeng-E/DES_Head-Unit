@@ -1,19 +1,42 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
+import QtQuick.Effects
+import "../components"
 
 Item {
     id: homeScreen
 
     signal openMusic()
     signal openAmbient()
+    signal openClimate()
+    signal gearChanged(string gear)
 
     property var musicPlayer
     property string driveMode: "PARK"
     property color ambientColor: "#8b5cf6"
     property real ambientBrightness: 0.6
 
-    readonly property string _currentTrack: musicPlayer ? musicPlayer.currentTrack : ""
+    property string currentGear: driveModeToGear(driveMode)
+    onDriveModeChanged: currentGear = driveModeToGear(driveMode)
+
+    property string currentTrack: musicPlayer && musicPlayer.currentTrack ? musicPlayer.currentTrack : ""
+
+    readonly property string currentTrackTitle: formatTrackTitle(currentTrack)
+    readonly property string currentTrackArtist: formatTrackArtist(currentTrack)
+
+    function driveModeToGear(mode) {
+        if (!mode)
+            return "P";
+        const upper = mode.toUpperCase();
+        if (upper.startsWith("D"))
+            return "D";
+        if (upper.startsWith("R"))
+            return "R";
+        if (upper.startsWith("N"))
+            return "N";
+        return "P";
+    }
 
     function stripExtension(str) {
         if (!str)
@@ -22,22 +45,22 @@ Item {
         return idx > -1 ? str.substring(0, idx) : str;
     }
 
-    function trackArtist(fileName) {
+    function formatTrackTitle(fileName) {
+        if (!fileName)
+            return qsTr("Select a track");
+        const parts = fileName.split("-");
+        if (parts.length < 2)
+            return stripExtension(fileName).replace(/_/g, " ").trim();
+        return stripExtension(parts.slice(1).join("-")).replace(/_/g, " ").trim();
+    }
+
+    function formatTrackArtist(fileName) {
         if (!fileName)
             return qsTr("Unknown artist");
         const parts = fileName.split("-");
         if (parts.length < 2)
             return qsTr("Unknown artist");
         return parts[0].replace(/_/g, " ").trim();
-    }
-
-    function trackTitle(fileName) {
-        if (!fileName)
-            return qsTr("No track selected");
-        const parts = fileName.split("-");
-        if (parts.length < 2)
-            return stripExtension(fileName).replace(/_/g, " ").trim();
-        return stripExtension(parts.slice(1).join("-")).replace(/_/g, " ").trim();
     }
 
     Timer {
@@ -64,7 +87,7 @@ Item {
 
                 Text {
                     id: timeText
-                    color: "#FFFFFF"
+                    color: "#ffffff"
                     font.pixelSize: 42
                     text: Qt.formatTime(new Date(), "hh:mm")
                 }
@@ -79,173 +102,65 @@ Item {
 
             Item { Layout.fillWidth: true }
 
-            Rectangle {
-                width: 140
+            GearSelector {
+                width: 200
                 height: 36
-                radius: 18
-                color: "#1a1a1a"
-                border.color: "#333333"
-                border.width: 1
-
-                RowLayout {
-                    anchors.centerIn: parent
-                    spacing: 6
-
-                    Text {
-                        text: "⏸"
-                        color: "#999999"
-                        font.pixelSize: 14
-                    }
-
-                    Text {
-                        text: driveMode.length ? driveMode : qsTr("PARK")
-                        color: "#999999"
-                        font.pixelSize: 13
-                    }
+                currentGear: homeScreen.currentGear
+                onGearChanged: function(gear) {
+                    homeScreen.currentGear = gear
+                    homeScreen.gearChanged(gear)
                 }
             }
         }
 
-        GridLayout {
+        Item {
             Layout.fillWidth: true
             Layout.fillHeight: true
-            columns: 3
-            rows: 2
-            columnSpacing: 16
-            rowSpacing: 16
 
             Rectangle {
-                Layout.columnSpan: 2
-                Layout.fillWidth: true
-                Layout.preferredHeight: 140
-                radius: 16
-                color: "#1a1a1a"
-                border.color: "#333333"
-                border.width: 1
-
-                RowLayout {
-                    anchors.fill: parent
-                    anchors.margins: 16
-                    spacing: 12
-
-                    Item {
-                        Layout.fillWidth: true
-                        Layout.fillHeight: true
-
-                        ColumnLayout {
-                            anchors.centerIn: parent
-                            spacing: 4
-
-                            Text {
-                                Layout.alignment: Qt.AlignHCenter
-                                text: "⏱"
-                                font.pixelSize: 28
-                                color: "#60a5fa"
-                            }
-
-                            Text {
-                                Layout.alignment: Qt.AlignHCenter
-                                text: "0"
-                                color: "#FFFFFF"
-                                font.pixelSize: 32
-                            }
-
-                            Text {
-                                Layout.alignment: Qt.AlignHCenter
-                                text: "km/h"
-                                color: "#666666"
-                                font.pixelSize: 11
-                            }
-                        }
-                    }
-
-                    Rectangle {
-                        width: 1
-                        Layout.fillHeight: true
-                        Layout.topMargin: 16
-                        Layout.bottomMargin: 16
-                        color: "#333333"
-                    }
-
-                    Item {
-                        Layout.fillWidth: true
-                        Layout.fillHeight: true
-
-                        ColumnLayout {
-                            anchors.centerIn: parent
-                            spacing: 4
-
-                            Text {
-                                Layout.alignment: Qt.AlignHCenter
-                                text: "🔋"
-                                font.pixelSize: 28
-                                color: "#10b981"
-                            }
-
-                            Text {
-                                Layout.alignment: Qt.AlignHCenter
-                                text: "78%"
-                                color: "#FFFFFF"
-                                font.pixelSize: 32
-                            }
-
-                            Text {
-                                Layout.alignment: Qt.AlignHCenter
-                                text: qsTr("Battery")
-                                color: "#666666"
-                                font.pixelSize: 11
-                            }
-                        }
-                    }
-
-                    Rectangle {
-                        width: 1
-                        Layout.fillHeight: true
-                        Layout.topMargin: 16
-                        Layout.bottomMargin: 16
-                        color: "#333333"
-                    }
-
-                    Item {
-                        Layout.fillWidth: true
-                        Layout.fillHeight: true
-
-                        ColumnLayout {
-                            anchors.centerIn: parent
-                            spacing: 4
-
-                            Text {
-                                Layout.alignment: Qt.AlignHCenter
-                                text: "⛽"
-                                font.pixelSize: 28
-                                color: "#fb923c"
-                            }
-
-                            Text {
-                                Layout.alignment: Qt.AlignHCenter
-                                text: "420"
-                                color: "#FFFFFF"
-                                font.pixelSize: 32
-                            }
-
-                            Text {
-                                Layout.alignment: Qt.AlignHCenter
-                                text: qsTr("km range")
-                                color: "#666666"
-                                font.pixelSize: 11
-                            }
-                        }
-                    }
+                anchors.fill: parent
+                radius: 28
+                visible: ambientBrightness > 0
+                opacity: Math.min(0.35, ambientBrightness * 0.4)
+                z: -1
+                gradient: Gradient {
+                    GradientStop { position: 0.0; color: Qt.rgba(ambientColor.r, ambientColor.g, ambientColor.b, 0.35) }
+                    GradientStop { position: 1.0; color: Qt.rgba(ambientColor.r * 0.7, ambientColor.g * 0.7, ambientColor.b * 0.7, 0.05) }
                 }
             }
 
-            Rectangle {
-                Layout.fillWidth: true
-                Layout.preferredHeight: 140
-                radius: 16
-                color: "#1a1a1a"
-                border.color: "#333333"
+            GridLayout {
+                anchors.fill: parent
+                columns: 3
+                rows: 2
+                columnSpacing: 16
+                rowSpacing: 16
+
+                VehicleInfoWidget {
+                    Layout.columnSpan: 2
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: 140
+                }
+
+                Rectangle {
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: 140
+                    radius: 16
+                    color: climateMouse.containsMouse ? "#252525" : "#1a1a1a"
+                    border.color: "#333333"
                 border.width: 1
+
+                Behavior on color {
+                    ColorAnimation { duration: 200 }
+                }
+
+                MouseArea {
+                    id: climateMouse
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: homeScreen.openClimate()
+                }
 
                 ColumnLayout {
                     anchors.fill: parent
@@ -256,37 +171,45 @@ Item {
                         Layout.fillWidth: true
 
                         Text {
-                            text: "💨"
+                            text: "🌡"
                             font.pixelSize: 18
                             color: "#60a5fa"
                         }
 
                         Text {
                             text: qsTr("Climate")
-                            color: "#FFFFFF"
+                            color: "#ffffff"
                             font.pixelSize: 14
                         }
 
                         Item { Layout.fillWidth: true }
+
+                        Text {
+                            text: "›"
+                            color: "#666666"
+                            font.pixelSize: 24
+                        }
                     }
+
+                    Item { Layout.fillHeight: true }
 
                     Text {
                         Layout.alignment: Qt.AlignHCenter
                         text: qsTr("22°C")
-                        color: "#FFFFFF"
+                        color: "#ffffff"
                         font.pixelSize: 36
                     }
 
                     Item { Layout.fillHeight: true }
                 }
-            }
+                }
 
-            Rectangle {
-                Layout.columnSpan: 2
-                Layout.fillWidth: true
-                Layout.preferredHeight: 140
-                radius: 16
-                color: musicMouse.containsMouse ? "#252525" : "#1a1a1a"
+                Rectangle {
+                    Layout.columnSpan: 2
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: 140
+                    radius: 16
+                    color: musicMouse.containsMouse ? "#252525" : "#1a1a1a"
                 border.color: "#333333"
                 border.width: 1
 
@@ -329,19 +252,19 @@ Item {
 
                         Text {
                             text: qsTr("Music")
-                            color: "#FFFFFF"
+                            color: "#ffffff"
                             font.pixelSize: 18
                         }
 
                         Text {
-                            text: trackTitle(_currentTrack)
-                            color: "#CCCCCC"
+                            text: currentTrackTitle
+                            color: "#cccccc"
                             font.pixelSize: 15
                             elide: Text.ElideRight
                         }
 
                         Text {
-                            text: trackArtist(_currentTrack)
+                            text: currentTrackArtist
                             color: "#666666"
                             font.pixelSize: 13
                             elide: Text.ElideRight
@@ -356,14 +279,14 @@ Item {
                         font.pixelSize: 32
                     }
                 }
-            }
+                }
 
-            Rectangle {
-                Layout.fillWidth: true
-                Layout.preferredHeight: 140
-                radius: 16
-                color: ambientMouse.containsMouse ? "#252525" : "#1a1a1a"
-                border.color: "#333333"
+                Rectangle {
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: 140
+                    radius: 16
+                    color: ambientMouse.containsMouse ? "#252525" : "#1a1a1a"
+                    border.color: "#333333"
                 border.width: 1
 
                 Behavior on color {
@@ -384,6 +307,8 @@ Item {
                     spacing: 12
 
                     RowLayout {
+                        Layout.fillWidth: true
+
                         Text {
                             text: "💡"
                             font.pixelSize: 20
@@ -392,8 +317,16 @@ Item {
 
                         Text {
                             text: qsTr("Ambient")
-                            color: "#FFFFFF"
+                            color: "#ffffff"
                             font.pixelSize: 14
+                        }
+
+                        Item { Layout.fillWidth: true }
+
+                        Text {
+                            text: "›"
+                            color: "#666666"
+                            font.pixelSize: 24
                         }
                     }
 
@@ -401,10 +334,23 @@ Item {
 
                     Rectangle {
                         Layout.alignment: Qt.AlignHCenter
-                        width: 60
-                        height: 60
-                        radius: 30
-                        color: ambientColor
+                        width: 64
+                        height: 64
+                        radius: 32
+                        gradient: Gradient {
+                            GradientStop { position: 0.0; color: ambientColor }
+                            GradientStop { position: 1.0; color: Qt.darker(ambientColor, 1.2) }
+                        }
+                        opacity: ambientBrightness > 0
+                                 ? Math.min(1, ambientBrightness * 1.4 + 0.2)
+                                 : 0.25
+
+                        layer.enabled: true
+                        layer.effect: MultiEffect {
+                            blurEnabled: true
+                            blur: 0.5
+                            blurMax: 20
+                        }
                     }
 
                     Text {
@@ -415,6 +361,7 @@ Item {
                     }
 
                     Item { Layout.fillHeight: true }
+                }
                 }
             }
         }

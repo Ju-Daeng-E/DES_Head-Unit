@@ -3,11 +3,13 @@
 #include <QQmlContext>
 #include <QUrl>
 #include <QCoreApplication>
+#include <QMetaObject>
 #include <cstdlib>
 
 HeadUnit::HeadUnit()
     : _engine(std::make_unique<QQmlApplicationEngine>())
-    , _musicPlayer(std::make_shared<MusicPlayer>()) {
+    , _musicPlayer(std::make_shared<MusicPlayer>())
+    , _weatherService(std::make_shared<WeatherService>()) {
 }
 
 HeadUnit::~HeadUnit() = default;
@@ -74,6 +76,11 @@ void HeadUnit::loadQml(const std::string& path, QGuiApplication& app) {
     }
 
     _engine->rootContext()->setContextProperty(QStringLiteral("musicPlayer"), _musicPlayer.get());
+    _engine->rootContext()->setContextProperty(QStringLiteral("weatherService"), _weatherService.get());
+
+    if (_weatherService) {
+        QMetaObject::invokeMethod(_weatherService.get(), &WeatherService::fetchWeather, Qt::QueuedConnection);
+    }
 
     const QString sourceString = QString::fromStdString(path);
     const QUrl sourceUrl = sourceString.startsWith(QStringLiteral("qrc:/"))

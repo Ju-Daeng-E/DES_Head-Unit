@@ -3,6 +3,7 @@
 
 #include "ViewModel.h"
 #include "backend/music/music_player.h"
+#include "backend/weather/weather_service.h"
 #include <QGuiApplication>
 #include <QQmlApplicationEngine>
 #include <QThread>
@@ -47,6 +48,7 @@ class HeadUnit {
         std::unordered_map<std::string, QTimer_ptr> _timers;
 
         s_ptr<MusicPlayer> _musicPlayer = nullptr;
+        s_ptr<WeatherService> _weatherService = nullptr;
 };
 
 

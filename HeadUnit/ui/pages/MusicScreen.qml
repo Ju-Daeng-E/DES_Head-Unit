@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
+import "../components"
 
 Item {
     id: musicScreen
@@ -8,25 +9,16 @@ Item {
     signal backClicked()
 
     property var musicPlayer
-    property int currentIndex: -1
+    property int currentIndex: (musicPlayer && musicPlayer.tracks)
+                               ? musicPlayer.tracks.indexOf(musicPlayer.currentTrack)
+                               : -1
     property bool isPlaying: musicPlayer ? musicPlayer.playing : false
-
-    readonly property string currentTrack: musicPlayer ? musicPlayer.currentTrack : ""
 
     function stripExtension(str) {
         if (!str)
             return "";
         const idx = str.lastIndexOf(".");
         return idx > -1 ? str.substring(0, idx) : str;
-    }
-
-    function trackArtist(fileName) {
-        if (!fileName)
-            return qsTr("Unknown artist");
-        const parts = fileName.split("-");
-        if (parts.length < 2)
-            return qsTr("Unknown artist");
-        return parts[0].replace(/_/g, " ").trim();
     }
 
     function trackTitle(fileName) {
@@ -36,6 +28,15 @@ Item {
         if (parts.length < 2)
             return stripExtension(fileName).replace(/_/g, " ").trim();
         return stripExtension(parts.slice(1).join("-")).replace(/_/g, " ").trim();
+    }
+
+    function trackArtist(fileName) {
+        if (!fileName)
+            return qsTr("Unknown artist");
+        const parts = fileName.split("-");
+        if (parts.length < 2)
+            return qsTr("Unknown artist");
+        return parts[0].replace(/_/g, " ").trim();
     }
 
     function formatTime(ms) {
@@ -49,31 +50,37 @@ Item {
         return minuteStr + ":" + secondStr;
     }
 
-    function ensureLibraryLoaded() {
+    function ensureLibrary() {
         if (musicPlayer && musicPlayer.tracks && musicPlayer.tracks.length === 0) {
             musicPlayer.loadLibrary();
         }
     }
 
-    function updateCurrentIndex() {
-        if (!musicPlayer || !musicPlayer.tracks)
-            return;
-        currentIndex = musicPlayer.tracks.indexOf(musicPlayer.currentTrack);
-    }
-
-    Component.onCompleted: {
-        ensureLibraryLoaded();
-        updateCurrentIndex();
-        isPlaying = musicPlayer ? musicPlayer.playing : false;
-    }
+    Component.onCompleted: ensureLibrary();
 
     Connections {
         target: musicPlayer
-        onCurrentTrackChanged: musicScreen.updateCurrentIndex()
-        onTracksChanged: musicScreen.updateCurrentIndex()
-        onPlayingChanged: musicScreen.isPlaying = musicPlayer.playing
-        onDurationChanged: nowPlayingProgress.requestPaint()
-        onPositionChanged: nowPlayingProgress.requestPaint()
+
+        function onTracksChanged() {
+            ensureLibrary();
+            currentIndex = musicPlayer.tracks.indexOf(musicPlayer.currentTrack);
+        }
+
+        function onCurrentTrackChanged() {
+            currentIndex = musicPlayer.tracks.indexOf(musicPlayer.currentTrack);
+        }
+
+        function onPlayingChanged() {
+            isPlaying = musicPlayer.playing;
+        }
+
+        function onDurationChanged() {
+            progressCanvas.requestPaint();
+        }
+
+        function onPositionChanged() {
+            progressCanvas.requestPaint();
+        }
     }
 
     Rectangle {
@@ -94,36 +101,14 @@ Item {
                     anchors.leftMargin: 24
                     anchors.rightMargin: 24
 
-                    Button {
-                        Layout.preferredWidth: 44
-                        Layout.preferredHeight: 44
-
-                        background: Rectangle {
-                            radius: 22
-                            color: parent.hovered ? "#2a2a2a" : "#1a1a1a"
-                            border.color: "#333333"
-                            border.width: 1
-
-                            Behavior on color {
-                                ColorAnimation { duration: 150 }
-                            }
-                        }
-
-                        contentItem: Text {
-                            text: "‹"
-                            color: "#FFFFFF"
-                            font.pixelSize: 28
-                            horizontalAlignment: Text.AlignHCenter
-                            verticalAlignment: Text.AlignVCenter
-                        }
-
-                        onClicked: musicScreen.backClicked()
+                    BackButton {
+                        onGoBack: musicScreen.backClicked()
                     }
 
                     Text {
                         Layout.leftMargin: 16
                         text: qsTr("Music Player")
-                        color: "#FFFFFF"
+                        color: "#ffffff"
                         font.pixelSize: 22
                     }
 
@@ -133,17 +118,17 @@ Item {
 
             Rectangle {
                 Layout.fillWidth: true
-                Layout.preferredHeight: 180
+                Layout.preferredHeight: 190
                 color: "#0f0f0f"
 
                 RowLayout {
                     anchors.fill: parent
                     anchors.margins: 24
-                    spacing: 20
+                    spacing: 24
 
                     Rectangle {
-                        width: 130
-                        height: 130
+                        width: 140
+                        height: 140
                         radius: 16
                         gradient: Gradient {
                             GradientStop { position: 0.0; color: "#a855f7" }
@@ -153,7 +138,7 @@ Item {
                         Text {
                             anchors.centerIn: parent
                             text: "🎵"
-                            font.pixelSize: 56
+                            font.pixelSize: 60
                         }
                     }
 
@@ -162,14 +147,14 @@ Item {
                         spacing: 6
 
                         Text {
-                            text: trackTitle(currentTrack)
-                            color: "#FFFFFF"
+                            text: trackTitle(musicPlayer ? musicPlayer.currentTrack : "")
+                            color: "#ffffff"
                             font.pixelSize: 24
                             elide: Text.ElideRight
                         }
 
                         Text {
-                            text: trackArtist(currentTrack)
+                            text: trackArtist(musicPlayer ? musicPlayer.currentTrack : "")
                             color: "#999999"
                             font.pixelSize: 16
                             elide: Text.ElideRight
@@ -195,9 +180,10 @@ Item {
                             }
 
                             Canvas {
-                                id: nowPlayingProgress
+                                id: progressCanvas
                                 Layout.fillWidth: true
                                 height: 4
+
                                 onPaint: {
                                     var ctx = getContext("2d");
                                     ctx.reset();
@@ -206,13 +192,6 @@ Item {
                                     var progress = musicPlayer && musicPlayer.progress ? musicPlayer.progress : 0;
                                     ctx.fillStyle = "#8b5cf6";
                                     ctx.fillRect(0, 0, width * progress, height);
-                                }
-
-                                Connections {
-                                    target: musicPlayer
-                                    function onProgressChanged() {
-                                        nowPlayingProgress.requestPaint();
-                                    }
                                 }
                             }
 
@@ -244,13 +223,13 @@ Item {
 
                             contentItem: Text {
                                 text: "⏮"
-                                color: "#FFFFFF"
+                                color: "#ffffff"
                                 font.pixelSize: 20
                                 horizontalAlignment: Text.AlignHCenter
                                 verticalAlignment: Text.AlignVCenter
                             }
 
-                            onClicked: if (musicPlayer) musicPlayer.previous()
+                            onClicked: musicPlayer && musicPlayer.previous()
                         }
 
                         Button {
@@ -259,7 +238,7 @@ Item {
 
                             background: Rectangle {
                                 radius: 30
-                                color: parent.hovered ? "#e5e5e5" : "#FFFFFF"
+                                color: parent.hovered ? "#e5e5e5" : "#ffffff"
 
                                 Behavior on color {
                                     ColorAnimation { duration: 150 }
@@ -274,7 +253,12 @@ Item {
                                 verticalAlignment: Text.AlignVCenter
                             }
 
-                            onClicked: if (musicPlayer) musicPlayer.toggle(musicPlayer.currentTrack)
+                            onClicked: {
+                                if (!musicPlayer)
+                                    return;
+                                musicPlayer.toggle(musicPlayer.currentTrack);
+                                isPlaying = musicPlayer.playing;
+                            }
                         }
 
                         Button {
@@ -294,13 +278,13 @@ Item {
 
                             contentItem: Text {
                                 text: "⏭"
-                                color: "#FFFFFF"
+                                color: "#ffffff"
                                 font.pixelSize: 20
                                 horizontalAlignment: Text.AlignHCenter
                                 verticalAlignment: Text.AlignVCenter
                             }
 
-                            onClicked: if (musicPlayer) musicPlayer.next()
+                            onClicked: musicPlayer && musicPlayer.next()
                         }
                     }
                 }
@@ -316,12 +300,13 @@ Item {
                     anchors.leftMargin: 24
                     anchors.verticalCenter: parent.verticalCenter
                     text: qsTr("Playlist")
-                    color: "#FFFFFF"
+                    color: "#ffffff"
                     font.pixelSize: 18
                 }
             }
 
             ListView {
+                id: playlistView
                 Layout.fillWidth: true
                 Layout.fillHeight: true
                 clip: true
@@ -331,23 +316,24 @@ Item {
                 delegate: Rectangle {
                     width: ListView.view.width
                     height: 70
-                    color: mouseArea.containsMouse ? "#1a1a1a"
-                          : (index === musicScreen.currentIndex ? "#0f0f0f" : "#000000")
+                    color: (index === musicScreen.currentIndex)
+                           ? "#111111"
+                           : (trackMouse.containsMouse ? "#1a1a1a" : "#000000")
 
                     Behavior on color {
                         ColorAnimation { duration: 150 }
                     }
 
                     MouseArea {
-                        id: mouseArea
+                        id: trackMouse
                         anchors.fill: parent
                         hoverEnabled: true
                         cursorShape: Qt.PointingHandCursor
                         onClicked: {
-                            if (musicPlayer) {
-                                musicPlayer.play(modelData);
-                                musicScreen.isPlaying = true;
-                            }
+                            if (!musicPlayer)
+                                return;
+                            musicPlayer.play(modelData);
+                            musicScreen.isPlaying = true;
                         }
                     }
 
@@ -364,14 +350,17 @@ Item {
                             Layout.preferredWidth: 30
                         }
 
-                        ColumnLayout {
+                       ColumnLayout {
                             Layout.fillWidth: true
+                            Layout.alignment: Qt.AlignVCenter
                             spacing: 4
 
                             Text {
                                 text: trackTitle(modelData)
-                                color: index === musicScreen.currentIndex ? "#FFFFFF" : "#CCCCCC"
+                                color: index === musicScreen.currentIndex ? "#ffffff" : "#cccccc"
                                 font.pixelSize: 15
+                                Layout.fillWidth: true
+                                horizontalAlignment: Text.AlignLeft
                                 elide: Text.ElideRight
                             }
 
@@ -379,6 +368,8 @@ Item {
                                 text: trackArtist(modelData)
                                 color: "#666666"
                                 font.pixelSize: 12
+                                Layout.fillWidth: true
+                                horizontalAlignment: Text.AlignLeft
                                 elide: Text.ElideRight
                             }
                         }
@@ -392,7 +383,7 @@ Item {
                         }
 
                         Text {
-                            text: index === musicScreen.currentIndex && musicScreen.isPlaying ? "🔊" : ""
+                            text: (index === musicScreen.currentIndex && musicScreen.isPlaying) ? "🔊" : ""
                             font.pixelSize: 16
                             Layout.preferredWidth: 24
                         }
