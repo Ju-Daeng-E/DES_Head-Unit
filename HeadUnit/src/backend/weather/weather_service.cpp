@@ -10,16 +10,16 @@
 #include <QSslError>
 
 namespace {
-constexpr double kLatitude = 37.5665;   // Seoul (example)
-constexpr double kLongitude = 126.9780;
+constexpr auto kForecastTemplate =
+    "http://api.open-meteo.com/v1/forecast?latitude=%1&longitude=%2"
+    "&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m,precipitation"
+    "&timezone=auto";
+constexpr auto kIpLookupUrl = "http://ip-api.com/json";
 
-QUrl buildRequestUrl() {
-    QString url = QStringLiteral(
-        "http://api.open-meteo.com/v1/forecast"
-        "?latitude=%1&longitude=%2"
-        "&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m,precipitation"
-        "&timezone=auto");
-    return QUrl(url.arg(kLatitude, 0, 'f', 4).arg(kLongitude, 0, 'f', 4));
+QUrl buildForecastUrl(double latitude, double longitude) {
+    return QUrl(QString::fromLatin1(kForecastTemplate)
+                    .arg(latitude, 0, 'f', 4)
+                    .arg(longitude, 0, 'f', 4));
 }
 } // namespace
 
@@ -55,30 +55,29 @@ QDateTime WeatherService::lastUpdated() const {
     return lastUpdated_;
 }
 
+double WeatherService::latitude() const {
+    return latitude_;
+}
+
+double WeatherService::longitude() const {
+    return longitude_;
+}
+
 void WeatherService::fetchWeather() {
     if (pendingReply_) {
         pendingReply_->deleteLater();
         pendingReply_ = nullptr;
     }
+    if (pendingLocationReply_) {
+        pendingLocationReply_->deleteLater();
+        pendingLocationReply_ = nullptr;
+    }
 
-    QNetworkRequest request(buildRequestUrl());
-    pendingReply_ = manager_.get(request);
-    pendingReply_->setParent(this);
-
-    connect(pendingReply_, &QNetworkReply::finished, this, &WeatherService::handleWeatherReply);
-
-#if QT_CONFIG(ssl)
-    // ensure we surface TLS errors
-    connect(pendingReply_, qOverload<const QList<QSslError>&>(&QNetworkReply::sslErrors),
-            this, [this](const QList<QSslError>& errors) {
-                QStringList descriptions;
-                descriptions.reserve(errors.size());
-                for (const auto& err : errors) {
-                    descriptions << err.errorString();
-                }
-                emit errorOccurred(descriptions.join(QStringLiteral("; ")));
-            });
-#endif
+    if (!locationResolved_) {
+        requestLocation();
+    } else {
+        requestForecast();
+    }
 }
 
 void WeatherService::handleWeatherReply() {
@@ -100,6 +99,63 @@ void WeatherService::handleWeatherReply() {
 
     const QByteArray payload = reply->readAll();
     updateFromPayload(payload);
+}
+
+void WeatherService::handleLocationReply() {
+    if (!pendingLocationReply_) {
+        return;
+    }
+
+    auto reply = pendingLocationReply_;
+    pendingLocationReply_ = nullptr;
+
+    const auto cleanup = qScopeGuard([reply]() {
+        reply->deleteLater();
+    });
+
+    if (reply->error() != QNetworkReply::NoError) {
+        emit errorOccurred(tr("Location lookup failed: %1").arg(reply->errorString()));
+        return;
+    }
+
+    const auto payload = reply->readAll();
+    const QJsonDocument doc = QJsonDocument::fromJson(payload);
+    if (!doc.isObject()) {
+        emit errorOccurred(tr("Malformed IP geo payload"));
+        return;
+    }
+
+    const QJsonObject obj = doc.object();
+    const QString status = obj.value(QStringLiteral("status")).toString();
+    if (status.compare(QStringLiteral("success"), Qt::CaseInsensitive) != 0) {
+        const QString message = obj.value(QStringLiteral("message")).toString();
+        emit errorOccurred(tr("Geo lookup failed: %1").arg(message));
+        return;
+    }
+
+    const double lat = obj.value(QStringLiteral("lat")).toDouble(qQNaN());
+    const double lon = obj.value(QStringLiteral("lon")).toDouble(qQNaN());
+    if (qIsNaN(lat) || qIsNaN(lon)) {
+        emit errorOccurred(tr("Geo lookup returned invalid coordinates"));
+        return;
+    }
+
+    bool changed = false;
+    if (!qFuzzyCompare(latitude_, lat)) {
+        latitude_ = lat;
+        changed = true;
+    }
+    if (!qFuzzyCompare(longitude_, lon)) {
+        longitude_ = lon;
+        changed = true;
+    }
+    locationResolved_ = true;
+
+    if (changed) {
+        emit locationChanged();
+    }
+
+    requestForecast();
 }
 
 void WeatherService::updateFromPayload(const QByteArray& payload) {
@@ -227,4 +283,50 @@ QString WeatherService::descriptionForCode(int code) const {
     case 99: return tr("Thunderstorm with hail");
     default: return tr("Unknown");
     }
+}
+
+void WeatherService::requestLocation() {
+    QNetworkRequest request(QUrl(QString::fromLatin1(kIpLookupUrl)));
+    pendingLocationReply_ = manager_.get(request);
+    pendingLocationReply_->setParent(this);
+
+    connect(pendingLocationReply_, &QNetworkReply::finished,
+            this, &WeatherService::handleLocationReply);
+
+#if QT_CONFIG(ssl)
+    connect(pendingLocationReply_, qOverload<const QList<QSslError>&>(&QNetworkReply::sslErrors), this,
+            [this](const QList<QSslError>& errors) {
+                QStringList descriptions;
+                descriptions.reserve(errors.size());
+                for (const auto& err : errors) {
+                    descriptions << err.errorString();
+                }
+                emit errorOccurred(descriptions.join(QStringLiteral("; ")));
+            });
+#endif
+}
+
+void WeatherService::requestForecast() {
+    if (!locationResolved_ || qIsNaN(latitude_) || qIsNaN(longitude_)) {
+        emit errorOccurred(tr("Location not resolved"));
+        return;
+    }
+
+    QNetworkRequest request(buildForecastUrl(latitude_, longitude_));
+    pendingReply_ = manager_.get(request);
+    pendingReply_->setParent(this);
+
+    connect(pendingReply_, &QNetworkReply::finished, this, &WeatherService::handleWeatherReply);
+
+#if QT_CONFIG(ssl)
+    connect(pendingReply_, qOverload<const QList<QSslError>&>(&QNetworkReply::sslErrors),
+            this, [this](const QList<QSslError>& errors) {
+                QStringList descriptions;
+                descriptions.reserve(errors.size());
+                for (const auto& err : errors) {
+                    descriptions << err.errorString();
+                }
+                emit errorOccurred(descriptions.join(QStringLiteral("; ")));
+            });
+#endif
 }
