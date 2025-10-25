@@ -11,6 +11,8 @@ IMAGE_INSTALL:append = " \
     wpa-supplicant \
     connman connman-client \
     qtbase qtbase-plugins qtdeclarative qtmultimedia qtwayland \
+    qtdeclarative-plugins qtdeclarative-qmlplugins qtshadertools \
+    gstreamer1.0-plugins-base gstreamer1.0-plugins-good alsa-utils ca-certificates \
     headunit \
 "
 IMAGE_FSTYPES += "wic.bz2 rpi-sdimg"
