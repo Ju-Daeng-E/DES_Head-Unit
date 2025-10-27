@@ -13,6 +13,8 @@ set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 set(CMAKE_AUTOUIC ON)
 
+include(GNUInstallDirs)
+
 find_package(Qt6 6.5 REQUIRED COMPONENTS
     Core
     Gui
@@ -83,4 +85,9 @@ target_link_libraries(HeadUnitApp
 install(TARGETS HeadUnitApp
     BUNDLE DESTINATION .
     RUNTIME DESTINATION bin
+)
+
+install(DIRECTORY design/assets/
+    DESTINATION ${CMAKE_INSTALL_DATADIR}/headunit/music
+    FILES_MATCHING PATTERN "*.mp3"
 )

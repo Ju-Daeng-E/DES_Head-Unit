@@ -7,7 +7,7 @@ S = "${WORKDIR}/HeadUnit"
 
 inherit qt6-cmake systemd
 
-HEADUNIT_SRC ?= "${TOPDIR}/../DES_Head-Unit/HeadUnit"
+HEADUNIT_SRC ?= "${TOPDIR}/../HeadUnit"
 
 DEPENDS = "\
     qtbase \
