@@ -15,7 +15,8 @@ on:
         type: boolean
 
 env:
-  YOCTO_BUILD_DIR: build-des
+  YOCTO_ROOT: yocto-workspace
+  YOCTO_BUILD_DIR: yocto-workspace/build-des
   YOCTO_IMAGE: des-image
   YOCTO_MACHINE: raspberrypi4-64
   YOCTO_CACHE_DIR: /home/jeongmin/des-esdk
@@ -39,11 +40,11 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           filters: |
             qt_headunit:
-              - 'meta-custom/meta-app/**'
-              - 'meta-custom/meta-env/recipes-core/images/des-image.bb'
+              - 'yocto-workspace/meta-custom/meta-app/**'
+              - 'yocto-workspace/meta-custom/meta-env/recipes-core/images/des-image.bb'
               - '.github/workflows/yocto-ci.yml'
             qt_app:
-              - 'HeadUnit/**'
+              - 'Head-Unit/**'
               - '.github/workflows/yocto-ci.yml'
 
   metadata:
@@ -76,7 +77,12 @@ jobs:
           echo "BB_NUMBER_THREADS=${threads}" >> "${GITHUB_ENV}"
           echo "PARALLEL_MAKE=${parallel}" >> "${GITHUB_ENV}"
           echo "XZ_DEFAULTS=${xz}" >> "${GITHUB_ENV}"
-          mkdir -p "${YOCTO_CACHE_DIR}/downloads" "${YOCTO_CACHE_DIR}/sstate-cache"
+          for d in "${YOCTO_CACHE_DIR}/downloads" "${YOCTO_CACHE_DIR}/sstate-cache"; do
+            if [ ! -d "$d" ]; then
+              mkdir -p "$d"
+            fi
+          done
+          mkdir -p "${YOCTO_BUILD_DIR}/conf"
           {
             echo "DL_DIR = \"${YOCTO_CACHE_DIR}/downloads\""
             echo "SSTATE_DIR = \"${YOCTO_CACHE_DIR}/sstate-cache\""
@@ -91,7 +97,7 @@ jobs:
 
       - name: Parse metadata
         run: |
-          source poky/oe-init-build-env ${YOCTO_BUILD_DIR}
+          source ${YOCTO_ROOT}/poky/oe-init-build-env ${YOCTO_BUILD_DIR}
           bitbake -p
           bitbake-layers show-layers
           bitbake -n ${YOCTO_IMAGE}
@@ -118,7 +124,12 @@ jobs:
           echo "BB_NUMBER_THREADS=${threads}" >> "${GITHUB_ENV}"
           echo "PARALLEL_MAKE=${parallel}" >> "${GITHUB_ENV}"
           echo "XZ_DEFAULTS=${xz}" >> "${GITHUB_ENV}"
-          mkdir -p "${YOCTO_CACHE_DIR}/downloads" "${YOCTO_CACHE_DIR}/sstate-cache"
+          for d in "${YOCTO_CACHE_DIR}/downloads" "${YOCTO_CACHE_DIR}/sstate-cache"; do
+            if [ ! -d "$d" ]; then
+              mkdir -p "$d"
+            fi
+          done
+          mkdir -p "${YOCTO_BUILD_DIR}/conf"
           {
             echo "DL_DIR = \"${YOCTO_CACHE_DIR}/downloads\""
             echo "SSTATE_DIR = \"${YOCTO_CACHE_DIR}/sstate-cache\""
@@ -131,7 +142,7 @@ jobs:
       - name: Restore downloads cache
         uses: actions/cache@v4
         with:
-          key: downloads-${{ runner.os }}-${{ hashFiles('meta-custom/**/*.bb', 'meta-custom/**/*.bbappend', 'meta-custom/**/*.bbclass', 'build-des/conf/*.conf') }}
+          key: downloads-${{ runner.os }}-${{ hashFiles('yocto-workspace/meta-custom/**/*.bb', 'yocto-workspace/meta-custom/**/*.bbappend', 'yocto-workspace/meta-custom/**/*.bbclass', 'yocto-workspace/build-des/conf/*.conf') }}
           restore-keys: |
             downloads-${{ runner.os }}-
           path: ${{ env.YOCTO_CACHE_DIR }}/downloads
@@ -139,7 +150,7 @@ jobs:
       - name: Restore sstate cache
         uses: actions/cache@v4
         with:
-          key: sstate-${{ runner.os }}-${{ hashFiles('meta-custom/**/*.bb', 'meta-custom/**/*.bbappend', 'meta-custom/**/*.bbclass', 'build-des/conf/*.conf') }}
+          key: sstate-${{ runner.os }}-${{ hashFiles('yocto-workspace/meta-custom/**/*.bb', 'yocto-workspace/meta-custom/**/*.bbappend', 'yocto-workspace/meta-custom/**/*.bbclass', 'yocto-workspace/build-des/conf/*.conf') }}
           restore-keys: |
             sstate-${{ runner.os }}-
           path: ${{ env.YOCTO_CACHE_DIR }}/sstate-cache
@@ -155,7 +166,7 @@ jobs:
 
       - name: Build Yocto image
         run: |
-          source poky/oe-init-build-env ${YOCTO_BUILD_DIR}
+          source ${YOCTO_ROOT}/poky/oe-init-build-env ${YOCTO_BUILD_DIR}
           bitbake ${YOCTO_IMAGE}
 
       - name: Archive WIC artifact
@@ -182,7 +193,7 @@ jobs:
         shell: bash
         run: |
           source /home/jeongmin/des-esdk/environment-setup-cortexa72-oe-linux
-          cmake -S HeadUnit -B headunit-build \
+          cmake -S Head-Unit -B headunit-build \
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_TOOLCHAIN_FILE=${OECORE_NATIVE_SYSROOT}/usr/share/cmake/OEToolchainConfig.cmake
           cmake --build headunit-build -- -j"$(nproc || echo 2)"
@@ -210,7 +221,12 @@ jobs:
           echo "BB_NUMBER_THREADS=${threads}" >> "${GITHUB_ENV}"
           echo "PARALLEL_MAKE=${parallel}" >> "${GITHUB_ENV}"
           echo "XZ_DEFAULTS=${xz}" >> "${GITHUB_ENV}"
-          mkdir -p "${YOCTO_CACHE_DIR}/downloads" "${YOCTO_CACHE_DIR}/sstate-cache"
+          for d in "${YOCTO_CACHE_DIR}/downloads" "${YOCTO_CACHE_DIR}/sstate-cache"; do
+            if [ ! -d "$d" ]; then
+              mkdir -p "$d"
+            fi
+          done
+          mkdir -p "${YOCTO_BUILD_DIR}/conf"
           {
             echo "DL_DIR = \"${YOCTO_CACHE_DIR}/downloads\""
             echo "SSTATE_DIR = \"${YOCTO_CACHE_DIR}/sstate-cache\""
@@ -223,7 +239,7 @@ jobs:
       - name: Restore downloads cache
         uses: actions/cache@v4
         with:
-          key: downloads-${{ runner.os }}-${{ hashFiles('meta-custom/meta-app/**/*', 'meta-custom/meta-env/recipes-core/images/des-image.bb', 'build-des/conf/*.conf') }}
+          key: downloads-${{ runner.os }}-${{ hashFiles('yocto-workspace/meta-custom/meta-app/**/*', 'yocto-workspace/meta-custom/meta-env/recipes-core/images/des-image.bb', 'yocto-workspace/build-des/conf/*.conf') }}
           restore-keys: |
             downloads-${{ runner.os }}-
           path: ${{ env.YOCTO_CACHE_DIR }}/downloads
@@ -231,7 +247,7 @@ jobs:
       - name: Restore sstate cache
         uses: actions/cache@v4
         with:
-          key: sstate-${{ runner.os }}-${{ hashFiles('meta-custom/meta-app/**/*', 'meta-custom/meta-env/recipes-core/images/des-image.bb', 'build-des/conf/*.conf') }}
+          key: sstate-${{ runner.os }}-${{ hashFiles('yocto-workspace/meta-custom/meta-app/**/*', 'yocto-workspace/meta-custom/meta-env/recipes-core/images/des-image.bb', 'yocto-workspace/build-des/conf/*.conf') }}
           restore-keys: |
             sstate-${{ runner.os }}-
           path: ${{ env.YOCTO_CACHE_DIR }}/sstate-cache
@@ -249,7 +265,7 @@ jobs:
         env:
           BB_ENV_PASSTHROUGH_ADDITIONS: BB_NUMBER_THREADS PARALLEL_MAKE XZ_DEFAULTS
         run: |
-          source poky/oe-init-build-env ${YOCTO_BUILD_DIR}
+          source ${YOCTO_ROOT}/poky/oe-init-build-env ${YOCTO_BUILD_DIR}
           bitbake headunit
 
       - name: Upload headunit package
