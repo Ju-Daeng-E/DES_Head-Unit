@@ -15,11 +15,11 @@ on:
         type: boolean
 
 env:
-  YOCTO_ROOT: yocto-workspace
-  YOCTO_BUILD_DIR: yocto-workspace/build-des
+  YOCTO_ROOT: ${{ github.workspace }}/yocto-workspace
+  YOCTO_BUILD_DIR: ${{ github.workspace }}/yocto-workspace/build-des
   YOCTO_IMAGE: des-image
   YOCTO_MACHINE: raspberrypi4-64
-  YOCTO_CACHE_DIR: yocto-workspace/build-des
+  YOCTO_CACHE_DIR: ${{ github.workspace }}/yocto-workspace/build-des
 
 jobs:
   changes:
