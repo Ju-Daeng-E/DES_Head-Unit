@@ -1,0 +1,24 @@
+[Unit]
+Description=Instrument Cluster Application
+After=multi-user.target weston.service piracer-controller.service
+Requires=weston.service piracer-controller.service
+
+[Service]
+Type=simple
+Environment=QT_QPA_PLATFORM=wayland
+Environment=QT_WAYLAND_DISABLE_WINDOWDECORATION=1
+Environment=QT_WAYLAND_FORCE_FULLSCREEN=1
+Environment=QT_WAYLAND_FULLSCREEN_OUTPUT=HDMI-A-1
+Environment=LANG=C.UTF-8
+Environment=LC_ALL=C.UTF-8
+Environment=XDG_RUNTIME_DIR=/run
+Environment=WAYLAND_DISPLAY=wayland-0
+ExecStart=/usr/bin/appIC
+Restart=on-failure
+RestartSec=5
+
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
