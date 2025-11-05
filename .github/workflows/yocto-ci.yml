@@ -153,11 +153,6 @@ jobs:
             sstate-${{ runner.os }}-
           path: ${{ env.YOCTO_CACHE_DIR }}/sstate-cache
 
-      - name: Drop stale tarballs
-        run: |
-          rm -f ${YOCTO_BUILD_DIR}/downloads/quilt-0.67.tar.gz
-          rm -f ${YOCTO_BUILD_DIR}/downloads/xz-5.4.7.tar.gz
-
       - name: Install build dependencies
         run: |
           sudo apt-get update
@@ -254,11 +249,6 @@ jobs:
           restore-keys: |
             sstate-${{ runner.os }}-
           path: ${{ env.YOCTO_CACHE_DIR }}/sstate-cache
-
-      - name: Drop stale tarballs
-        run: |
-          rm -f ${YOCTO_BUILD_DIR}/downloads/quilt-0.67.tar.gz
-          rm -f ${YOCTO_BUILD_DIR}/downloads/xz-5.4.7.tar.gz
 
       - name: Install build dependencies
         run: |
