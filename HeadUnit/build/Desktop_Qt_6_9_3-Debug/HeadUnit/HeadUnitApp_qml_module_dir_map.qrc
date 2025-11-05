@@ -1,6 +1,0 @@
-<RCC>
-  <qresource prefix="/">
-    <file alias="/qt/qml/HeadUnit">/home/jeongmin/yocto/work/DES_Head-Unit/HeadUnit/build/Desktop_Qt_6_9_3-Debug/HeadUnit</file>
-
-  </qresource>
-</RCC>

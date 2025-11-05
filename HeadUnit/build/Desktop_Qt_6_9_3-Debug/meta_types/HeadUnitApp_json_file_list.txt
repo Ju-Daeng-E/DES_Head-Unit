@@ -1,2 +1,0 @@
-/home/jeongmin/yocto/work/DES_Head-Unit/HeadUnit/build/Desktop_Qt_6_9_3-Debug/HeadUnitApp_autogen/include/../UVLADIE3JM/moc_ViewModel.cpp.json
-/home/jeongmin/yocto/work/DES_Head-Unit/HeadUnit/build/Desktop_Qt_6_9_3-Debug/HeadUnitApp_autogen/include/../XA6UWPLOU2/moc_music_player.cpp.json

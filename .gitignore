@@ -10,3 +10,6 @@ build-des/bitbake-cookerdaemon.log
 
 # Editor settings
 .vscode/
+build/
+.yocto-cache/
+build-des/conf/auto.conf

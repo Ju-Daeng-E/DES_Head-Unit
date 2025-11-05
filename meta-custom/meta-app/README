@@ -1,41 +1,46 @@
-This README file contains information on the contents of the meta-app layer.
-
-Please see the corresponding sections below for details.
-
-Dependencies
-============
-
-  URI: <first dependency>
-  branch: <branch name>
-
-  URI: <second dependency>
-  branch: <branch name>
-
-  .
-  .
-  .
-
-Patches
-=======
-
-Please submit any patches against the meta-app layer to the xxxx mailing list (xxxx@zzzz.org)
-and cc: the maintainer:
-
-Maintainer: XXX YYYYYY <xxx.yyyyyy@zzzzz.com>
-
-Table of Contents
-=================
-
-  I. Adding the meta-app layer to your build
- II. Misc
-
-
-I. Adding the meta-app layer to your build
-=================================================
-
-Run 'bitbake-layers add-layer meta-app'
-
-II. Misc
+meta-app
 ========
 
---- replace with specific information about the meta-app layer ---
+Application layer that packages the Qt-based head unit and instrument cluster
+for the DES infotainment stack.
+
+Provided recipes
+----------------
+
+* ``recipes-des/headunit/headunit.bb`` – builds the modular Qt head-unit UI,
+  installs its assets, and drops ``headunit.service`` to launch it under Weston.
+* ``recipes-des/instrument-cluster/instrument-cluster.bb`` – builds the Qt
+  instrument cluster (`appIC`) from the external source tree and ships the
+  matching ``instrument-cluster.service``.
+
+External source layout
+----------------------
+
+Both recipes stage their sources from sibling workspaces so developers can keep
+writing code outside Yocto:
+
+* ``HEADUNIT_SRC ?= "${TOPDIR}/../../Head-Unit"``
+* ``IC_SRC ?= "${TOPDIR}/../../DES_Instrument-Cluster/Cluster-app"``
+
+Ensure the paths are accessible in your build environment or override them in a
+``.bbappend``/``local.conf`` entry.
+
+Integration
+-----------
+
+Add the layer to the build configuration:
+
+.. code-block:: bash
+
+   bitbake-layers add-layer meta-custom/meta-app
+
+The image recipe ``meta-custom/meta-env/recipes-core/images/des-image.bb``
+already depends on ``headunit`` and ``instrument-cluster``; custom images can do
+so with:
+
+.. code-block:: bitbake
+
+   IMAGE_INSTALL:append = " headunit instrument-cluster "
+
+Systemd units are enabled automatically on install.  Inspect their runtime state
+with ``systemctl status headunit instrument-cluster`` on the target.

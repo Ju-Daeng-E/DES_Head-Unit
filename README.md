@@ -14,11 +14,12 @@ This workspace assembles a Yocto Project based Linux image for an automotive-sty
 |   |-- meta-env/               # Distribution + image definitions
 |   |   |-- conf/distro/des.conf
 |   |   `-- recipes-core/images/des-image.bb
-|   |-- meta-app/               # Qt Quick head unit application
-|   |   |-- recipes-des/headunit/headunit.bb
-|   |   `-- recipes-des/headunit/files/{main.qml,run-headunit.sh,headunit.service}
-|   `-- meta-piracer/           # Extra hardware integration (SocketCAN bring-up)
-|       `-- recipes-support/can/{can0.bb,files/can0.service}
+|   |-- meta-app/               # Qt Quick applications
+|   |   |-- recipes-des/headunit/...
+|   |   `-- recipes-des/instrument-cluster/...
+|   `-- meta-piracer/           # Extra hardware integration (SocketCAN + controller)
+|       |-- recipes-support/can/{can0.bb,can1.bb,...}
+|       `-- recipes-support/piracer-controller/...
 `-- build-des/
     |-- conf/{local.conf,bblayers.conf}
     `-- tmp-glibc/…             # BitBake build artefacts (generated)
@@ -32,8 +33,8 @@ Keep `build-des/tmp-glibc`, `downloads`, and `sstate-cache` out of version contr
 - `meta-qt6/`: Supplies Qt 6 modules used by the QML application.
 - `meta-raspberrypi/`: Board support for Raspberry Pi 4 (kernel, firmware, GPU stack, bootloader).
 - `meta-custom/meta-env`: Custom distribution (`des`), policies, and the top-level image recipe that pulls every component together.
-- `meta-custom/meta-app`: Packages the Qt Quick head unit (`headunit.bb`) plus its assets and systemd unit.
-- `meta-custom/meta-piracer`: Small enablement snippets such as the `can0` systemd unit for SocketCAN devices.
+- `meta-custom/meta-app`: Packages the Qt Quick head unit and instrument cluster Qt applications plus their systemd units.
+- `meta-custom/meta-piracer`: Hardware bring-up helpers such as CAN interface units and the PiRacer controller service.
 
 All three custom layers are registered in `build-des/conf/bblayers.conf` so BitBake sees their metadata.
 
@@ -54,6 +55,11 @@ All three custom layers are registered in `build-des/conf/bblayers.conf` so BitB
 - Installs `run-headunit.sh` into `/usr/bin`, `main.qml` under `/usr/share/headunit`, and drops a systemd unit.
 - Inherits `systemd`, depends on Qt declarative and Wayland components, and enables the unit at install time (`SYSTEMD_AUTO_ENABLE = "enable"`).
 
+### `meta-custom/meta-app/recipes-des/instrument-cluster/instrument-cluster.bb`
+- Builds the `appIC` cluster application from the external `DES_Instrument-Cluster/Cluster-app` workspace.
+- Stages sources via the `IC_SRC` path, pruning developer build artefacts before configuration.
+- Installs the binary, data assets under `/usr/share/appIC`, and the `instrument-cluster.service` systemd unit (enabled by default).
+
 ### `meta-custom/meta-app/recipes-des/headunit/files/headunit.service`
 - Systemd unit that waits for Weston, exports Wayland-related environment variables, and launches `/usr/bin/run-headunit`.
 - Configured as a simple service tied to `graphical.target` so the UI comes up automatically on boot.
@@ -65,8 +71,19 @@ All three custom layers are registered in `build-des/conf/bblayers.conf` so BitB
 ### `meta-custom/meta-app/recipes-des/headunit/files/main.qml`
 - Entry-point QML file rendered by the launcher; great place to iterate on UI widgets.
 
+### `meta-custom/meta-app/recipes-des/instrument-cluster/files/instrument-cluster.service`
+- Systemd unit that brings up `appIC`, ensuring Weston and the PiRacer controller are active before launching the cluster UI.
+- Exports Wayland environment variables and runs the application full-screen on the configured output.
+
 ### `meta-custom/meta-piracer/recipes-support/can/can0.bb`
 - Ships `can0.service`, a one-shot systemd unit that configures the `can0` SocketCAN interface at 500 kbps and leaves it up for later use.
+
+### `meta-custom/meta-piracer/recipes-support/can/can1.bb`
+- Mirrors the `can0` unit but targets the `can1` interface, matching the interface consumed by the instrument cluster application.
+
+### `meta-custom/meta-piracer/recipes-support/piracer-controller/piracer-controller.bb`
+- Packages the PiRacer controller scripts (`controller.py`, `gamepads.py`) and installs `piracer-controller.service`.
+- The service exposes drive-mode updates via shared memory and, when the vendor `vehicles` module is installed, drives the PiRacer hardware from a USB gamepad.
 
 ## Configuration to Know About
 - `build-des/conf/local.conf`: Extends the default Poky template with Raspberry Pi machine selection, distro override (`DISTRO ?= "des"`), parallel build limits, xz compression tuning, and disk space guards.
@@ -83,4 +100,4 @@ All three custom layers are registered in `build-des/conf/bblayers.conf` so BitB
 - Replace example recipes under `meta-custom/*/recipes-example` once you start adding real packages.
 - Adjust `QT_QPA_PLATFORM` handling if you later need to support X11 or EGLFS—currently set in the distro config and launcher.
 - Customize Weston runtime behaviour by shipping a `weston.ini` if the kiosk shell needs tweaks.
-- Validate the CAN device naming on real hardware and update `can0.service` as required.
+- Validate the CAN device naming on real hardware and adjust the `can*.service` units or symlinks as required.

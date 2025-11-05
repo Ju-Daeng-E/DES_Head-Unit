@@ -1,20 +1,20 @@
-SUMMARY = "Qt 6 modular head unit application"
+SUMMARY = "Qt 6 instrument cluster application"
 LICENSE = "CLOSED"
 
-SRC_URI = "file://headunit.service"
+SRC_URI = "file://instrument-cluster.service"
 
-S = "${WORKDIR}/HeadUnit"
+S = "${WORKDIR}/InstrumentCluster"
 
 inherit qt6-cmake systemd
 
-HEADUNIT_SRC ?= "${TOPDIR}/../../Head-Unit"
+IC_SRC ?= "${TOPDIR}/../../DES_Instrument-Cluster/Cluster-app"
 
 DEPENDS = "\
     qtbase \
     qtdeclarative \
     qtdeclarative-native \
-    qtmultimedia \
     qtwayland \
+    qtmultimedia \
     qtshadertools-native \
 "
 
@@ -27,9 +27,9 @@ RDEPENDS:${PN} = "\
 "
 
 do_prepare_sources() {
-    src="${HEADUNIT_SRC}"
+    src="${IC_SRC}"
     if [ ! -d "${src}" ]; then
-        bberror "HeadUnit sources not found at ${src}"
+        bberror "Instrument Cluster sources not found at ${src}"
         exit 1
     fi
 
@@ -37,7 +37,6 @@ do_prepare_sources() {
     mkdir -p ${S}
     cp -a "${src}"/. ${S}/
 
-    # Drop developer-only build directories that should not be staged
     find ${S} -maxdepth 1 -type d -name "build*" -exec rm -rf {} +
     rm -rf ${S}/.qtc_clangd
 }
@@ -47,14 +46,14 @@ do_prepare_sources[dirs] = "${WORKDIR}"
 
 do_install:append() {
     install -d ${D}${systemd_system_unitdir}
-    install -m 0644 ${WORKDIR}/headunit.service ${D}${systemd_system_unitdir}/headunit.service
+    install -m 0644 ${WORKDIR}/instrument-cluster.service ${D}${systemd_system_unitdir}/instrument-cluster.service
 }
 
 FILES:${PN} += "\
-    ${bindir}/HeadUnitApp \
-    ${datadir}/headunit \
-    ${systemd_system_unitdir}/headunit.service \
+    ${bindir}/appIC \
+    ${datadir}/appIC \
+    ${systemd_system_unitdir}/instrument-cluster.service \
 "
 
-SYSTEMD_SERVICE:${PN} = "headunit.service"
+SYSTEMD_SERVICE:${PN} = "instrument-cluster.service"
 SYSTEMD_AUTO_ENABLE = "enable"

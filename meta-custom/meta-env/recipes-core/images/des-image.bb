@@ -13,7 +13,13 @@ IMAGE_INSTALL:append = " \
     qtbase qtbase-plugins qtdeclarative qtmultimedia qtwayland \
     qtdeclarative-plugins qtdeclarative-qmlplugins qtshadertools \
     gstreamer1.0-plugins-base gstreamer1.0-plugins-good alsa-utils ca-certificates \
+    weston weston-init \
+    i2c-dev-autoload \
     headunit \
+    instrument-cluster \
+    des-gear-dbus-config \
+    can1 \
+    piracer-controller \
+    des-piracer-vehicles \
 "
 IMAGE_FSTYPES += "wic.bz2 rpi-sdimg"
-IMAGE_INSTALL:append = " weston weston-init "
