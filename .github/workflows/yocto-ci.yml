@@ -77,8 +77,6 @@ jobs:
           echo "BB_NUMBER_THREADS=${threads}" >> "${GITHUB_ENV}"
           echo "PARALLEL_MAKE=${parallel}" >> "${GITHUB_ENV}"
           echo "XZ_DEFAULTS=${xz}" >> "${GITHUB_ENV}"
-          rm -f ${YOCTO_BUILD_DIR}/downloads/quilt-0.67.tar.gz
-          rm -f ${YOCTO_BUILD_DIR}/downloads/xz-5.4.7.tar.gz
           for d in "${YOCTO_CACHE_DIR}/downloads" "${YOCTO_CACHE_DIR}/sstate-cache"; do
             mkdir -p "$d"
           done
@@ -155,6 +153,11 @@ jobs:
             sstate-${{ runner.os }}-
           path: ${{ env.YOCTO_CACHE_DIR }}/sstate-cache
 
+      - name: Drop stale tarballs
+        run: |
+          rm -f ${YOCTO_BUILD_DIR}/downloads/quilt-0.67.tar.gz
+          rm -f ${YOCTO_BUILD_DIR}/downloads/xz-5.4.7.tar.gz
+
       - name: Install build dependencies
         run: |
           sudo apt-get update
@@ -221,8 +224,6 @@ jobs:
           echo "BB_NUMBER_THREADS=${threads}" >> "${GITHUB_ENV}"
           echo "PARALLEL_MAKE=${parallel}" >> "${GITHUB_ENV}"
           echo "XZ_DEFAULTS=${xz}" >> "${GITHUB_ENV}"
-          rm -f ${YOCTO_BUILD_DIR}/downloads/quilt-0.67.tar.gz
-          rm -f ${YOCTO_BUILD_DIR}/downloads/xz-5.4.7.tar.gz
           for d in "${YOCTO_CACHE_DIR}/downloads" "${YOCTO_CACHE_DIR}/sstate-cache"; do
             if [ ! -d "$d" ]; then
               mkdir -p "$d"
@@ -253,6 +254,11 @@ jobs:
           restore-keys: |
             sstate-${{ runner.os }}-
           path: ${{ env.YOCTO_CACHE_DIR }}/sstate-cache
+
+      - name: Drop stale tarballs
+        run: |
+          rm -f ${YOCTO_BUILD_DIR}/downloads/quilt-0.67.tar.gz
+          rm -f ${YOCTO_BUILD_DIR}/downloads/xz-5.4.7.tar.gz
 
       - name: Install build dependencies
         run: |
