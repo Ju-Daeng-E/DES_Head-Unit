@@ -19,7 +19,7 @@ env:
   YOCTO_BUILD_DIR: yocto-workspace/build-des
   YOCTO_IMAGE: des-image
   YOCTO_MACHINE: raspberrypi4-64
-  YOCTO_CACHE_DIR: /home/jeongmin/des-esdk
+  YOCTO_CACHE_DIR: yocto-workspace/build-des
 
 jobs:
   changes:
@@ -78,14 +78,7 @@ jobs:
           echo "PARALLEL_MAKE=${parallel}" >> "${GITHUB_ENV}"
           echo "XZ_DEFAULTS=${xz}" >> "${GITHUB_ENV}"
           for d in "${YOCTO_CACHE_DIR}/downloads" "${YOCTO_CACHE_DIR}/sstate-cache"; do
-            if [ -L "$d" ]; then
-              target=$(readlink -f "$d")
-              mkdir -p "$target"
-              continue
-            fi
-            if [ ! -d "$d" ]; then
-              mkdir -p "$d"
-            fi
+            mkdir -p "$d"
           done
           mkdir -p "${YOCTO_BUILD_DIR}/conf"
           {
@@ -130,14 +123,7 @@ jobs:
           echo "PARALLEL_MAKE=${parallel}" >> "${GITHUB_ENV}"
           echo "XZ_DEFAULTS=${xz}" >> "${GITHUB_ENV}"
           for d in "${YOCTO_CACHE_DIR}/downloads" "${YOCTO_CACHE_DIR}/sstate-cache"; do
-            if [ -L "$d" ]; then
-              target=$(readlink -f "$d")
-              mkdir -p "$target"
-              continue
-            fi
-            if [ ! -d "$d" ]; then
-              mkdir -p "$d"
-            fi
+            mkdir -p "$d"
           done
           mkdir -p "${YOCTO_BUILD_DIR}/conf"
           {
