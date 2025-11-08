@@ -1,66 +1,128 @@
-# DES Cockpit Workspace
+# DES Cockpit Workspace (Head‑Unit + Cluster + Yocto)
 
-두 Qt 애플리케이션(Instrument Cluster, Head-Unit)과 Yocto 빌드 환경을 한곳에 모은 통합 워크스페이스. 개발용 랩탑에서는 세션 버스, 라즈베리 파이에서는 시스템 버스를 사용하도록 구성.
+An integrated workspace that hosts three related parts:
+- Head‑Unit: a Qt 6/QML application for the head unit UI.
+- Instrument Cluster: a Qt 6/QML cluster app plus Arduino sketches and Pi helper scripts.
+- Yocto: a full Yocto Project workspace to build deployable Raspberry Pi images.
 
-## 구성 개요
+This README focuses on using all three together so you can both run locally and build images with Yocto.
 
-| 경로 | 설명 |
-| --- | --- |
-| `DES_Instrument-Cluster/` | 계기판 Qt 앱(`Cluster-app`), Arduino 스케치, systemd 유닛, 문서 |
-| `Head-Unit/` | 헤드유닛 Qt 앱. D-Bus 로 Cluster와 기어 상태를 주고받음 |
-| `yocto-workspace/` | Yocto Project 워크스페이스 (poky, meta-*, build-des 등) |
+## Directory Structure
 
-상세 사용법은 각 디렉터리의 `README.md`를 참고하세요.
+```
+.
+├── Head-Unit/                # Qt Head‑Unit application
+│   ├── ui/                   # QML (main, pages, components)
+│   ├── src/                  # C++ backends (gear, music, weather)
+│   ├── design/assets/        # sample audio assets (.mp3)
+│   └── CMakeLists.txt
+├── DES_Instrument-Cluster/   # Instrument Cluster app + helpers
+│   ├── Cluster-app/          # Qt 6/QML app (appIC)
+│   ├── Arduino/              # speed sensor sketches
+│   ├── Pi-controller/        # Raspberry Pi helper scripts
+│   └── systemd/              # systemd unit files
+├── yocto-workspace/          # Yocto Project workspace
+│   ├── poky/
+│   ├── meta-openembedded/
+│   ├── meta-qt6/
+│   ├── meta-raspberrypi/
+│   └── meta-custom/
+│       ├── meta-env/         # distro + image (des-image)
+│       ├── meta-app/         # headunit + instrument-cluster recipes
+│       └── meta-piracer/     # CAN + PiRacer controller recipes
+└── .github/workflows/        # CI (Yocto + Qt builds)
+```
 
-## 로컬 개발(랩탑) 절차
+## Architecture
 
-1. Qt Creator 또는 CMake CLI로 **Cluster-app(appIC)** 을 빌드합니다.  
-   실행 전 `DES_GEAR_USE_SESSION_BUS=1` 환경변수를 설정해 세션 버스를 사용합니다.
-2. 같은 변수 설정으로 **HeadUnitApp** 을 실행합니다.  
-   순서는 *appIC → HeadUnitApp* 이어야 D-Bus 서비스(`com.des.vehicle`)가 먼저 등록.
-3. 두 앱이 실행 중이면 Head-Unit 좌측 상단의 기어 상태가 Cluster에서 오는 값으로 동기화됩니다.
+- Head‑Unit and Instrument Cluster communicate over D‑Bus.
+  - Service: `com.des.vehicle`
+  - Object: `/com/des/vehicle/Gear`
+  - Interface: `com.des.vehicle.Gear`
+  - Methods: `GetGear()`, `RequestGear(quint8 gear, QString source)`
+  - Signals: `GearChanged(quint8, QString, quint32)`, `GearRequestRejected(quint8, QString)`
+- Dev runs typically use the session bus: set `DES_GEAR_USE_SESSION_BUS=1`.
+- On device, system bus is used by default.
 
-## Yocto 빌드 & 배포
+Optional diagram: `DES_Instrument-Cluster/.github/Architecture.drawio.png`.
 
-```bash
+## Getting Started
+
+### Prerequisites
+- Linux dev machine or Raspberry Pi 4B (64‑bit)
+- Qt 6.5+ (Core, Gui, Widgets, Quick, Qml, Multimedia, Network, DBus)
+- D‑Bus runtime; Wayland/Weston for on‑device UI
+- For cluster sensor demo: Arduino Uno‑class board, LM363 speed sensor, CAN shield/HAT
+
+## Build and Run (Local)
+
+Head‑Unit via CMake
+```sh
+cmake -S Head-Unit -B headunit-build -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH=/path/to/Qt/6.x/gcc_64
+cmake --build headunit-build -- -j"$(nproc || echo 2)"
+DES_GEAR_USE_SESSION_BUS=1 ./headunit-build/HeadUnitApp
+```
+
+Instrument Cluster (Docker helper)
+```sh
+cd DES_Instrument-Cluster/Cluster-app
+# On ARM hosts:
+cp ../build-tool/Dockerfile ./ && cp ../build-tool/Makefile ./
+# On x86 hosts (cross to aarch64):
+# cp ../build-tool/Dockerfile.x86 ./Dockerfile && cp ../build-tool/Makefile.x86 ./Makefile && cp ../build-tool/toolchain-aarch64.cmake ./
+make            # build inside Docker
+# make run      # optional: deploy to Pi and run ~/appIC
+```
+
+Tip: Start the Cluster first so the D‑Bus service is registered, then run Head‑Unit.
+
+## Yocto Build (Raspberry Pi Image)
+
+Environment
+```sh
 cd yocto-workspace
 . poky/oe-init-build-env build-des
-bitbake des-image
 ```
 
-- `meta-custom/meta-app/recipes-des/headunit/headunit.bb` 가 `../../Head-Unit` 소스를 패키징합니다.  
-- 계기판 앱 및 지원 스크립트는 `meta-custom` 하위 레시피에서 포함되며, 완성된 이미지는  
-  `build-des/tmp-glibc/deploy/images/raspberrypi4-64/`에 생성됩니다.
-
-## D-Bus 프로토콜 요약
-
-| 항목 | 값 |
-| --- | --- |
-| 서비스 | `com.des.vehicle` |
-| 오브젝트 | `/com/des/vehicle/Gear` |
-| 인터페이스 | `com.des.vehicle.Gear` |
-| 메서드 | `GetGear() -> [quint8 gear, quint32 seq]`, `RequestGear(quint8 gear, QString source)` |
-| 시그널 | `GearChanged(quint8 gear, QString source, quint32 seq)`, `GearRequestRejected(quint8 gear, QString reason)` |
-
-- 개발 환경: `DES_GEAR_USE_SESSION_BUS=1`로 세션 버스를 명시합니다.  
-- 배포 환경: 환경변수를 설정하지 않아 시스템 버스를 사용한다. 정책파일로 이름 소유만 허용
-
-## 자주 쓰는 명령 모음
-
-```bash
-# 세션 버스에서 서비스 등록 여부 확인
-busctl --user list | grep com.des.vehicle
-
-# 시스템 버스 확인 (라즈베리 파이)
-busctl --system list | grep com.des.vehicle
-
-# Qt Creator 없이 실행
-DES_GEAR_USE_SESSION_BUS=1 \
-  DES_Instrument-Cluster/Cluster-app/build/Desktop_Qt_6_9_3-Debug/appIC &
-DES_GEAR_USE_SESSION_BUS=1 \
-  Head-Unit/build/Desktop_Qt_6_9_3-Debug/HeadUnitApp
+Build just the app package
+```sh
+bitbake headunit
 ```
 
-## 라이선스
+Build the full image
+```sh
+BITBAKE_IMAGE=des-image
+bitbake ${BITBAKE_IMAGE}
+```
 
-모든 코드와 문서는 MIT License를 따릅니다 (`LICENSE` 파일 참조).
+Artifacts
+- Images under: `yocto-workspace/build-des/tmp-glibc/deploy/images/raspberrypi4-64/`
+- Packages (rpm/deb/ipk) under the respective deploy subfolders
+
+Key custom layers
+- `meta-custom/meta-env`: distro config (`des.conf`) and `des-image.bb`
+- `meta-custom/meta-app`: `headunit.bb`, `instrument-cluster.bb` and their systemd units
+- `meta-custom/meta-piracer`: CAN interface units (`can0.service`, `can1.service`) and `piracer-controller`
+
+## Systemd Services (on device)
+- Head‑Unit: `headunit.service` → launches `/usr/bin/HeadUnitApp -platform wayland`
+- Instrument Cluster: `instrument-cluster.service` → launches `/usr/bin/appIC`
+- CAN bring‑up: `can0.service`, `can1.service`
+- PiRacer: `piracer-controller.service`
+
+All are installed/enabled by their Yocto recipes.
+
+## CI
+- Workflow: `.github/workflows/yocto-ci.yml`
+- Jobs:
+  - Parse metadata and optional full image builds on a self‑hosted runner
+  - Per‑recipe build for `headunit`
+  - Optional CMake build using Yocto eSDK toolchain for quick verification
+
+## Contributing
+- Pull requests and issues are welcome.
+
+## License
+- MIT License (if applicable; see LICENSE if present)
+
+## Authors
