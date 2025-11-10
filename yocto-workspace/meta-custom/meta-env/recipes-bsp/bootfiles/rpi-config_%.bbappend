@@ -1,12 +1,15 @@
 #
-# Enable the MCP2515 overlays for both CAN buses used by the PiRacer.
-# This ensures the CAN0/CAN1 interfaces appear during boot so that the
-# piracer-controller and instrument-cluster services can start.
+# Instrument cluster CAN setup:
+#  - SPI + I2C stay enabled so the controller stack can talk to the CAN HW.
+#  - CAN overlays are injected explicitly so we can mix modules: a classic
+#    MCP2515-based board (Arduino side) plus the Seeed CAN-FD HAT v2.
 #
 
 ENABLE_SPI_BUS = "1"
-ENABLE_DUAL_CAN = "1"
-CAN_OSCILLATOR = "16000000"
-CAN0_INTERRUPT_PIN = "25"
-CAN1_INTERRUPT_PIN = "24"
 ENABLE_I2C = "1"
+
+RPI_EXTRA_CONFIG:append = "\
+\n# CAN bus configuration\n\
+dtoverlay=mcp2515-can1,oscillator=16000000,interrupt=25\n\
+dtoverlay=seeed-can-fd-hat-v2\n\
+"
