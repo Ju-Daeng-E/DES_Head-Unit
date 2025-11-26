@@ -22,25 +22,11 @@ void BluetoothAgent::RequestConfirmation(const QDBusObjectPath& device, quint32 
     QString devicePath = device.path();
     QString deviceName = getDeviceName(devicePath);
 
-    qDebug() << "========================================";
-    qDebug() << "[BluetoothAgent] *** PAIRING REQUEST ***";
-    qDebug() << "[BluetoothAgent] RequestConfirmation CALLED";
-    qDebug() << "[BluetoothAgent] Device Path:" << devicePath;
-    qDebug() << "[BluetoothAgent] Device Name:" << deviceName;
-    qDebug() << "[BluetoothAgent] Passkey:" << passkey;
-    qDebug() << "[BluetoothAgent] ✅ AUTO-ACCEPTING pairing (no user confirmation needed)";
-    qDebug() << "========================================";
+    qDebug() << "[BluetoothAgent] RequestConfirmation from" << deviceName << "with passkey" << passkey;
+    qDebug() << "[BluetoothAgent] ✅ AUTO-ACCEPTING pairing";
 
-    // Auto-accept pairing without waiting for user confirmation
-    // This makes it work like terminal "yes" command
-    pendingDevicePath_ = devicePath;
-
-    // Optional: Still emit signal to show notification in UI (but don't wait for response)
-    emit passkeyConfirmationRequested(devicePath, deviceName, passkey);
-
-    // Return immediately - success means accepted in BlueZ agent protocol
-    qDebug() << "[BluetoothAgent] ✅ Pairing automatically accepted";
-    // Success - return normally (no sendErrorReply means accepted)
+    // void return = automatic success response
+    // Qt D-Bus automatically sends empty method_return when function returns normally
 }
 
 QString BluetoothAgent::RequestPinCode(const QDBusObjectPath& device) {
@@ -111,24 +97,22 @@ void BluetoothAgent::RequestAuthorization(const QDBusObjectPath& device) {
     QString devicePath = device.path();
     QString deviceName = getDeviceName(devicePath);
 
-    qDebug() << "[BluetoothAgent] RequestAuthorization:"
-             << "Device:" << deviceName;
+    qDebug() << "[BluetoothAgent] RequestAuthorization for" << deviceName;
+    qDebug() << "[BluetoothAgent] ✅ AUTO-ACCEPTING authorization";
 
-    // Auto-authorize for simplicity
-    // In production, you might want to show a dialog
-    qDebug() << "[BluetoothAgent] Auto-authorizing device";
+    // void return = automatic success response
+    // Qt D-Bus automatically sends empty method_return when function returns normally
 }
 
 void BluetoothAgent::AuthorizeService(const QDBusObjectPath& device, const QString& uuid) {
     QString devicePath = device.path();
     QString deviceName = getDeviceName(devicePath);
 
-    qDebug() << "[BluetoothAgent] AuthorizeService:"
-             << "Device:" << deviceName
-             << "UUID:" << uuid;
+    qDebug() << "[BluetoothAgent] AuthorizeService for" << deviceName << "with UUID" << uuid;
+    qDebug() << "[BluetoothAgent] ✅ AUTO-ACCEPTING service";
 
-    // Auto-authorize services
-    qDebug() << "[BluetoothAgent] Auto-authorizing service";
+    // void return = automatic success response
+    // Qt D-Bus automatically sends empty method_return when function returns normally
 }
 
 void BluetoothAgent::Cancel() {

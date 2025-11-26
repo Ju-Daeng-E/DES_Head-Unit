@@ -337,6 +337,21 @@ void BluetoothManager::handlePairingFinished(const QBluetoothAddress& address, Q
     if (pairing == QBluetoothLocalDevice::Paired || pairing == QBluetoothLocalDevice::AuthorizedPaired) {
         qDebug() << "[BluetoothManager] Device paired successfully:" << addressStr;
 
+        // Set device as trusted to avoid repeated authorization prompts
+        qDebug() << "[BluetoothManager] Setting device as trusted";
+        QString devicePath = "/org/bluez/hci0/dev_" + QString(addressStr).replace(":", "_");
+        QDBusInterface deviceProps("org.bluez", devicePath, "org.freedesktop.DBus.Properties", QDBusConnection::systemBus());
+        if (deviceProps.isValid()) {
+            QDBusReply<void> reply = deviceProps.call("Set", "org.bluez.Device1", "Trusted", QVariant::fromValue(QDBusVariant(true)));
+            if (!reply.isValid()) {
+                qWarning() << "[BluetoothManager] Failed to set Trusted property:" << reply.error().message();
+            } else {
+                qDebug() << "[BluetoothManager] ✅ Device set as trusted";
+            }
+        } else {
+            qWarning() << "[BluetoothManager] Could not get D-Bus interface for device:" << deviceProps.lastError().message();
+        }
+
         // Auto-stop broadcasting after successful pairing
         stopBroadcasting();
     } else if (pairing == QBluetoothLocalDevice::Unpaired) {
@@ -435,7 +450,8 @@ void BluetoothManager::initializeAgent() {
     QString agentPath = "/com/des/headunit/bluetooth/agent";
 
     qDebug() << "[BluetoothManager] Registering agent at D-Bus path:" << agentPath;
-    if (!bus.registerObject(agentPath, agent_)) {
+    // IMPORTANT: For QDBusAbstractAdaptor, register the PARENT object, not the adaptor itself!
+    if (!bus.registerObject(agentPath, this)) {
         qCritical() << "[BluetoothManager] *** FAILED to register agent object ***";
         qCritical() << "[BluetoothManager] Error:" << bus.lastError().message();
         qCritical() << "[BluetoothManager] Make sure you run with sudo!";
@@ -455,12 +471,13 @@ void BluetoothManager::initializeAgent() {
         return;
     }
 
-    // Register agent with "NoInputNoOutput" capability for automatic pairing
-    // This mode auto-accepts pairing without user confirmation
+    // Register agent with "KeyboardDisplay" capability
+    // This allows BlueZ to call our agent methods (AuthorizeService, RequestConfirmation, etc.)
+    // We will auto-accept in the methods themselves
     qDebug() << "[BluetoothManager] Calling BlueZ AgentManager.RegisterAgent...";
     QDBusReply<void> reply = agentManager.call("RegisterAgent",
                                                  QVariant::fromValue(QDBusObjectPath(agentPath)),
-                                                 "NoInputNoOutput");
+                                                 "KeyboardDisplay");
 
     if (!reply.isValid()) {
         qCritical() << "[BluetoothManager] *** FAILED to register agent with BlueZ ***";

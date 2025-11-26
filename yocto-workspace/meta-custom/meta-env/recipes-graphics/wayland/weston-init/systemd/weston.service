@@ -33,7 +33,7 @@ EnvironmentFile=/etc/default/weston
 # Keep Plymouth splash screen visible for 3 seconds before starting Weston
 ExecStartPre=/bin/sleep 3
 # Use custom weston.ini for dual-display configuration
-ExecStart=/usr/bin/weston --config=/etc/xdg/weston/weston.ini --modules=systemd-notify.so
+ExecStart=/usr/bin/weston --continue-without-input --config=/etc/xdg/weston/weston.ini --modules=systemd-notify.so
 Restart=on-failure
 RestartSec=5
 

@@ -4,6 +4,8 @@
 #include <QUrl>
 #include <QCoreApplication>
 #include <QMetaObject>
+#include <QProcess>
+#include <QTimer>
 #include <cstdlib>
 
 HeadUnit::HeadUnit()
@@ -98,12 +100,44 @@ void HeadUnit::loadQml(const std::string& path, QGuiApplication& app) {
 
     QObject::connect(
         _engine.get(), &QQmlApplicationEngine::objectCreated, &app,
-        [sourceUrl](QObject* obj, const QUrl& objUrl) {
+        [sourceUrl, this](QObject* obj, const QUrl& objUrl) {
             if (!obj && sourceUrl == objUrl) {
                 QCoreApplication::exit(EXIT_FAILURE);
+            } else if (obj && sourceUrl == objUrl) {
+                // QML loaded successfully - quit Plymouth after first frame is rendered
+                qDebug() << "[HeadUnit] QML loaded, scheduling Plymouth quit";
+                QTimer::singleShot(500, this, &HeadUnit::quitPlymouth);
             }
         },
         Qt::QueuedConnection);
 
     _engine->load(sourceUrl);
+}
+
+void HeadUnit::quitPlymouth() {
+    // Check if we should quit Plymouth
+    QByteArray quitOnReady = qgetenv("PLYMOUTH_QUIT_ON_READY");
+    if (quitOnReady.isEmpty() || quitOnReady == "0") {
+        qDebug() << "[HeadUnit] Plymouth quit disabled (PLYMOUTH_QUIT_ON_READY not set)";
+        return;
+    }
+
+    qDebug() << "[HeadUnit] Quitting Plymouth with smooth transition...";
+
+    // Use plymouth quit with --retain-splash for smooth transition
+    QProcess plymouthQuit;
+    plymouthQuit.start("/usr/bin/plymouth", QStringList() << "quit" << "--retain-splash");
+
+    if (!plymouthQuit.waitForStarted(1000)) {
+        qWarning() << "[HeadUnit] Failed to start plymouth quit command";
+        return;
+    }
+
+    if (!plymouthQuit.waitForFinished(3000)) {
+        qWarning() << "[HeadUnit] Plymouth quit command timed out";
+        plymouthQuit.kill();
+        return;
+    }
+
+    qDebug() << "[HeadUnit] Plymouth quit successfully";
 }

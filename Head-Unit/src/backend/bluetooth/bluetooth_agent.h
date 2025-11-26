@@ -21,6 +21,7 @@
 class BluetoothAgent : public QDBusAbstractAdaptor, protected QDBusContext {
     Q_OBJECT
     Q_CLASSINFO("D-Bus Interface", "org.bluez.Agent1")
+    Q_CLASSINFO("D-Bus Context", "true")
 
 public:
     explicit BluetoothAgent(QObject* parent = nullptr);

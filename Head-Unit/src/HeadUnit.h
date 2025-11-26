@@ -17,7 +17,9 @@
 #include <unordered_map>
 #include <memory>
 
-class HeadUnit {
+class HeadUnit : public QObject {
+    Q_OBJECT
+
     public:
         HeadUnit();
         ~HeadUnit();
@@ -30,6 +32,9 @@ class HeadUnit {
         /* Methods for run the application */
         void registerModel(const std::string&, ViewModel&);
         void loadQml(const std::string&, QGuiApplication&);
+
+    private slots:
+        void quitPlymouth();
 
     private:
         static constexpr int CLOSE_WAIT = 5000;
