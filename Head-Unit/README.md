@@ -35,7 +35,7 @@ Head-Unit/
 ```bash
 cd Head-Unit
 cmake -S . -B build/Desktop_Qt_6_9_3-Debug \
-  -DCMAKE_PREFIX_PATH=/home/jeongmin/Qt/6.9.3/gcc_64
+  -DCMAKE_PREFIX_PATH=/home/seame/Qt/6.9.3/gcc_64
 cmake --build build/Desktop_Qt_6_9_3-Debug
 DES_GEAR_USE_SESSION_BUS=1 \
   build/Desktop_Qt_6_9_3-Debug/HeadUnitApp
@@ -54,7 +54,7 @@ DES_GEAR_USE_SESSION_BUS=1 \
 - Head-Unit `GearClient`는 동일 버스에 접속해 `GetGear`, `RequestGear`, `GearChanged` 시그널을 사용합니다.
 
 ## Yocto 통합
-- `yocto-workspace/meta-custom/meta-app/recipes-des/headunit/headunit.bb`가 이 디렉터리를 그대로 패키징합니다.
+- `work/meta-custom/meta-app/recipes-des/headunit/headunit.bb`가 이 디렉터리를 그대로 패키징합니다.
 - 레시피는 `${TOPDIR}/../../Head-Unit`을 기본 소스 경로로 사용하므로, Yocto 빌드 전에 이 경로를 최신 상태로 유지하세요.
 - `bitbake des-image` 실행 전 Head-Unit을 재빌드할 필요는 없지만, 변경 사항은 git에 반영하거나 `do_prepare_sources` 단계에서 복사되도록 관리해야 합니다.
 

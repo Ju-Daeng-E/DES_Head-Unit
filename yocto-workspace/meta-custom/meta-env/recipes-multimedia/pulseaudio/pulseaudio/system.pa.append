@@ -1,0 +1,27 @@
+### Re-enable error checking for Bluetooth modules
+.fail
+
+### Load Bluetooth audio modules for A2DP Sink functionality
+
+# Load BlueZ5 discover module to detect Bluetooth audio devices
+.ifexists module-bluez5-discover.so
+load-module module-bluez5-discover
+.endif
+
+# Load Bluetooth policy module for automatic profile switching
+# This automatically switches to A2DP Sink when a phone connects
+# Use .nofail to allow boot to continue even if BlueZ is not ready yet
+.nofail
+.ifexists module-bluetooth-policy.so
+load-module module-bluetooth-policy auto_switch=2
+.endif
+.fail
+
+### Load a null sink for headless operation (when no Bluetooth device is connected)
+load-module module-null-sink sink_name=bt_sink sink_properties=device.description="Bluetooth_Fallback_Sink"
+
+### Set the null sink as the default to ensure audio has a place to go
+set-default-sink bt_sink
+
+### Automatically switch to Bluetooth sink when available
+# When a Bluetooth device connects and sends audio, loopback will be created automatically

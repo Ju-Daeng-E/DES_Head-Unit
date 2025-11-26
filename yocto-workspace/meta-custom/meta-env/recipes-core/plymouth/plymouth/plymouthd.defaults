@@ -1,0 +1,7 @@
+# Plymouth daemon configuration
+# Set DES theme as default
+
+[Daemon]
+Theme=des
+ShowDelay=0
+DeviceTimeout=8

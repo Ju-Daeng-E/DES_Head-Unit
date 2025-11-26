@@ -1,7 +1,11 @@
 SUMMARY = "Qt 6 modular head unit application"
 LICENSE = "CLOSED"
 
-SRC_URI = "file://headunit.service"
+SRC_URI = "file://headunit.service \
+           file://rfkill-unblock.service \
+           file://headunit-bluetooth.conf \
+"
+# bluetooth-class-fix.service 임시 비활성화 - 테스트 후 활성화
 
 S = "${WORKDIR}/HeadUnit"
 
@@ -15,7 +19,13 @@ DEPENDS = "\
     qtdeclarative-native \
     qtmultimedia \
     qtwayland \
+    qtwayland-native \
     qtshadertools-native \
+    qtconnectivity \
+    qt5compat \
+    bluez5 \
+    pulseaudio \
+    wayland \
 "
 
 RDEPENDS:${PN} = "\
@@ -24,6 +34,11 @@ RDEPENDS:${PN} = "\
     qtdeclarative-plugins \
     qtdeclarative-qmlplugins \
     qtmultimedia \
+    qtconnectivity \
+    qt5compat \
+    bluez5 \
+    pulseaudio \
+    weston \
 "
 
 do_prepare_sources() {
@@ -48,13 +63,18 @@ do_prepare_sources[dirs] = "${WORKDIR}"
 do_install:append() {
     install -d ${D}${systemd_system_unitdir}
     install -m 0644 ${WORKDIR}/headunit.service ${D}${systemd_system_unitdir}/headunit.service
+    install -m 0644 ${WORKDIR}/rfkill-unblock.service ${D}${systemd_system_unitdir}/rfkill-unblock.service
+    install -d ${D}${sysconfdir}/dbus-1/system.d/
+    install -m 0644 ${WORKDIR}/headunit-bluetooth.conf ${D}${sysconfdir}/dbus-1/system.d/headunit-bluetooth.conf
 }
 
 FILES:${PN} += "\
     ${bindir}/HeadUnitApp \
     ${datadir}/headunit \
     ${systemd_system_unitdir}/headunit.service \
+    ${systemd_system_unitdir}/rfkill-unblock.service \
+    ${sysconfdir}/dbus-1/system.d/headunit-bluetooth.conf \
 "
 
-SYSTEMD_SERVICE:${PN} = "headunit.service"
+SYSTEMD_SERVICE:${PN} = "headunit.service rfkill-unblock.service"
 SYSTEMD_AUTO_ENABLE = "enable"

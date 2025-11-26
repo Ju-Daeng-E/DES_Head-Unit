@@ -3,13 +3,14 @@ import QtQuick.Controls
 import QtQuick.Window
 import QtQuick.Layouts
 import QtQuick.Effects
+import QtQuick.Dialogs
 import "pages"
 
 ApplicationWindow {
     id: rootWindow
-    width: 960
-    height: 1080
-    x: 960
+    width: 1024
+    height: 600
+    x: 0
     y: 0
     visible: true
     visibility: Window.Windowed
@@ -34,6 +35,46 @@ ApplicationWindow {
         }
         if (gearClientRef)
             currentGear = gearClientRef.currentGear;
+
+        // Bluetooth pairing signal connections (GLOBAL - works from any screen)
+        if (bluetoothManager && bluetoothManager.agent) {
+            bluetoothManager.agent.passkeyConfirmationRequested.connect(function(devicePath, deviceName, passkey) {
+                console.log("[main.qml] Pairing request received:", deviceName, passkey);
+                passkeyConfirmDialog.deviceName = deviceName;
+                passkeyConfirmDialog.passkey = passkey.toString();
+                passkeyConfirmDialog.open();
+            });
+
+            bluetoothManager.agent.pinCodeRequested.connect(function(devicePath, deviceName) {
+                console.log("[main.qml] PIN code request received:", deviceName);
+                pinCodeDialog.deviceName = deviceName;
+                pinCodeDialog.open();
+            });
+
+            bluetoothManager.agent.passkeyDisplayRequested.connect(function(devicePath, deviceName, passkey, entered) {
+                console.log("[main.qml] Passkey display request:", deviceName, passkey);
+                passkeyDisplayDialog.deviceName = deviceName;
+                passkeyDisplayDialog.passkey = passkey.toString();
+                passkeyDisplayDialog.open();
+            });
+
+            bluetoothManager.agent.pairingCancelled.connect(function() {
+                console.log("[main.qml] Pairing cancelled");
+                passkeyConfirmDialog.close();
+                pinCodeDialog.close();
+                passkeyDisplayDialog.close();
+            });
+        }
+
+        // Auto-navigate to music screen ONLY after pairing is complete
+        if (bluetoothManager) {
+            bluetoothManager.connectedDeviceChanged.connect(() => {
+                if (bluetoothManager.connected && !passkeyConfirmDialog.opened) {
+                    // Only auto-navigate if not in pairing dialog
+                    stackView.push(musicScreen);
+                }
+            });
+        }
     }
 
     function mapDriveMode(mode) {
@@ -187,6 +228,351 @@ ApplicationWindow {
         }
     }
 
+    // ========================================
+    // GLOBAL Pairing Dialogs (visible from ANY screen)
+    // ========================================
+
+    // Passkey Confirmation Dialog (YES/NO for 6-digit number)
+    Dialog {
+        id: passkeyConfirmDialog
+        anchors.centerIn: parent
+        title: qsTr("Bluetooth Pairing Request")
+        modal: true
+        width: 500
+        height: 300
+        z: 10000  // Top-most layer
+
+        property string deviceName: ""
+        property string passkey: ""
+
+        background: Rectangle {
+            color: "#1a1a1a"
+            radius: 16
+            border.color: "#8b5cf6"
+            border.width: 3
+        }
+
+        onOpened: {
+            console.log("[main.qml] Pairing dialog OPENED");
+        }
+
+        onClosed: {
+            console.log("[main.qml] Pairing dialog CLOSED");
+        }
+
+        contentItem: Rectangle {
+            color: "transparent"
+
+            ColumnLayout {
+                anchors.fill: parent
+                anchors.margins: 24
+                spacing: 20
+
+                Text {
+                    Layout.fillWidth: true
+                    text: qsTr("📱 Pairing Request")
+                    color: "#8b5cf6"
+                    font.pixelSize: 24
+                    font.bold: true
+                }
+
+                Text {
+                    Layout.fillWidth: true
+                    text: qsTr("Confirm pairing with:")
+                    color: "#ffffff"
+                    font.pixelSize: 16
+                    wrapMode: Text.WordWrap
+                }
+
+                Text {
+                    Layout.fillWidth: true
+                    text: passkeyConfirmDialog.deviceName
+                    color: "#8b5cf6"
+                    font.pixelSize: 22
+                    font.bold: true
+                }
+
+                Rectangle {
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: 70
+                    color: "#2a2a2a"
+                    radius: 12
+                    border.color: "#8b5cf6"
+                    border.width: 3
+
+                    Text {
+                        anchors.centerIn: parent
+                        text: passkeyConfirmDialog.passkey
+                        color: "#ffffff"
+                        font.pixelSize: 40
+                        font.bold: true
+                        font.family: "monospace"
+                    }
+                }
+
+                Text {
+                    Layout.fillWidth: true
+                    text: qsTr("Does this code match the one on your phone?")
+                    color: "#cccccc"
+                    font.pixelSize: 16
+                    wrapMode: Text.WordWrap
+                    horizontalAlignment: Text.AlignHCenter
+                }
+
+                RowLayout {
+                    Layout.fillWidth: true
+                    Layout.alignment: Qt.AlignRight
+                    spacing: 16
+
+                    Button {
+                        text: qsTr("NO")
+                        implicitWidth: 120
+                        implicitHeight: 50
+
+                        onClicked: {
+                            console.log("[main.qml] User clicked NO");
+                            if (bluetoothManager && bluetoothManager.agent) {
+                                bluetoothManager.agent.confirmPairing(false);
+                            }
+                            passkeyConfirmDialog.close();
+                        }
+
+                        background: Rectangle {
+                            radius: 10
+                            color: parent.pressed ? "#7f1d1d" : (parent.hovered ? "#991b1b" : "#b91c1c")
+                        }
+
+                        contentItem: Text {
+                            text: parent.text
+                            color: "#ffffff"
+                            font.pixelSize: 18
+                            font.bold: true
+                            horizontalAlignment: Text.AlignHCenter
+                            verticalAlignment: Text.AlignVCenter
+                        }
+                    }
+
+                    Button {
+                        text: qsTr("YES")
+                        implicitWidth: 120
+                        implicitHeight: 50
+
+                        onClicked: {
+                            console.log("[main.qml] User clicked YES");
+                            if (bluetoothManager && bluetoothManager.agent) {
+                                bluetoothManager.agent.confirmPairing(true);
+                            }
+                            passkeyConfirmDialog.close();
+                        }
+
+                        background: Rectangle {
+                            radius: 10
+                            color: parent.pressed ? "#047857" : (parent.hovered ? "#059669" : "#10b981")
+                        }
+
+                        contentItem: Text {
+                            text: parent.text
+                            color: "#ffffff"
+                            font.pixelSize: 18
+                            font.bold: true
+                            horizontalAlignment: Text.AlignHCenter
+                            verticalAlignment: Text.AlignVCenter
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // PIN Code Input Dialog
+    Dialog {
+        id: pinCodeDialog
+        anchors.centerIn: parent
+        title: qsTr("PIN Code Required")
+        modal: true
+        width: 450
+        height: 280
+        z: 10000
+
+        property string deviceName: ""
+
+        background: Rectangle {
+            color: "#1a1a1a"
+            radius: 16
+            border.color: "#8b5cf6"
+            border.width: 3
+        }
+
+        contentItem: Rectangle {
+            color: "transparent"
+
+            ColumnLayout {
+                anchors.fill: parent
+                anchors.margins: 20
+                spacing: 16
+
+                Text {
+                    Layout.fillWidth: true
+                    text: qsTr("Enter PIN code to pair with:")
+                    color: "#ffffff"
+                    font.pixelSize: 16
+                }
+
+                Text {
+                    Layout.fillWidth: true
+                    text: pinCodeDialog.deviceName
+                    color: "#8b5cf6"
+                    font.pixelSize: 20
+                    font.bold: true
+                }
+
+                TextField {
+                    id: pinCodeInput
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: 55
+                    placeholderText: qsTr("Enter PIN (e.g., 0000 or 1234)")
+                    font.pixelSize: 20
+                    color: "#ffffff"
+                    horizontalAlignment: Text.AlignHCenter
+
+                    background: Rectangle {
+                        color: "#2a2a2a"
+                        radius: 8
+                        border.color: pinCodeInput.activeFocus ? "#8b5cf6" : "#404040"
+                        border.width: 2
+                    }
+                }
+
+                RowLayout {
+                    Layout.fillWidth: true
+                    Layout.alignment: Qt.AlignRight
+                    spacing: 12
+
+                    Button {
+                        text: qsTr("Cancel")
+                        onClicked: {
+                            if (bluetoothManager && bluetoothManager.agent) {
+                                bluetoothManager.agent.providePinCode("");
+                            }
+                            pinCodeInput.text = "";
+                            pinCodeDialog.close();
+                        }
+
+                        background: Rectangle {
+                            radius: 8
+                            color: parent.hovered ? "#404040" : "#2a2a2a"
+                        }
+
+                        contentItem: Text {
+                            text: parent.text
+                            color: "#ffffff"
+                            horizontalAlignment: Text.AlignHCenter
+                            verticalAlignment: Text.AlignVCenter
+                        }
+                    }
+
+                    Button {
+                        text: qsTr("Pair")
+                        enabled: pinCodeInput.text.length > 0
+
+                        onClicked: {
+                            if (bluetoothManager && bluetoothManager.agent) {
+                                bluetoothManager.agent.providePinCode(pinCodeInput.text);
+                            }
+                            pinCodeInput.text = "";
+                            pinCodeDialog.close();
+                        }
+
+                        background: Rectangle {
+                            radius: 8
+                            color: parent.enabled ? (parent.hovered ? "#7c3aed" : "#8b5cf6") : "#404040"
+                        }
+
+                        contentItem: Text {
+                            text: parent.text
+                            color: "#ffffff"
+                            horizontalAlignment: Text.AlignHCenter
+                            verticalAlignment: Text.AlignVCenter
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Passkey Display Dialog (show number to user)
+    Dialog {
+        id: passkeyDisplayDialog
+        anchors.centerIn: parent
+        title: qsTr("Enter This Code on Your Phone")
+        modal: true
+        width: 450
+        height: 250
+        z: 10000
+
+        property string deviceName: ""
+        property string passkey: ""
+
+        background: Rectangle {
+            color: "#1a1a1a"
+            radius: 16
+            border.color: "#8b5cf6"
+            border.width: 3
+        }
+
+        contentItem: Rectangle {
+            color: "transparent"
+
+            ColumnLayout {
+                anchors.fill: parent
+                anchors.margins: 20
+                spacing: 16
+
+                Text {
+                    Layout.fillWidth: true
+                    text: qsTr("Pairing with:")
+                    color: "#ffffff"
+                    font.pixelSize: 16
+                }
+
+                Text {
+                    Layout.fillWidth: true
+                    text: passkeyDisplayDialog.deviceName
+                    color: "#8b5cf6"
+                    font.pixelSize: 20
+                    font.bold: true
+                }
+
+                Rectangle {
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: 70
+                    color: "#2a2a2a"
+                    radius: 12
+                    border.color: "#8b5cf6"
+                    border.width: 3
+
+                    Text {
+                        anchors.centerIn: parent
+                        text: passkeyDisplayDialog.passkey
+                        color: "#ffffff"
+                        font.pixelSize: 40
+                        font.bold: true
+                        font.family: "monospace"
+                    }
+                }
+
+                Text {
+                    Layout.fillWidth: true
+                    text: qsTr("Enter this code on your phone to complete pairing")
+                    color: "#cccccc"
+                    font.pixelSize: 14
+                    wrapMode: Text.WordWrap
+                    horizontalAlignment: Text.AlignHCenter
+                }
+            }
+        }
+    }
+
     StackView {
         id: stackView
         anchors.fill: parent
@@ -227,6 +613,7 @@ ApplicationWindow {
             onOpenMusic: stackView.push(musicScreen)
             onOpenAmbient: stackView.push(ambientScreen)
             onOpenClimate: stackView.push(climateScreen)
+            onOpenBluetooth: stackView.push(bluetoothScreen)
 
             onGearChanged: function(gear) {
                 if (!rootWindow.gearClientRef)
@@ -238,7 +625,6 @@ ApplicationWindow {
     Component {
         id: musicScreen
         MusicScreen {
-            musicPlayer: rootWindow.playerRef
             onBackClicked: stackView.pop()
         }
     }
@@ -264,6 +650,13 @@ ApplicationWindow {
     Component {
         id: climateScreen
         ClimateScreen {
+            onBackClicked: stackView.pop()
+        }
+    }
+
+    Component {
+        id: bluetoothScreen
+        BluetoothScreen {
             onBackClicked: stackView.pop()
         }
     }

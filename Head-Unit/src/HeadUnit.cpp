@@ -10,7 +10,12 @@ HeadUnit::HeadUnit()
     : _engine(std::make_unique<QQmlApplicationEngine>())
     , _musicPlayer(std::make_shared<MusicPlayer>())
     , _gearClient(std::make_shared<GearClient>())
-    , _weatherService(std::make_shared<WeatherService>()) {
+    , _weatherService(std::make_shared<WeatherService>())
+    , _bluetoothManager(std::make_shared<BluetoothManager>())
+    , _bluetoothAudioPlayer(std::make_shared<BluetoothAudioPlayer>()) {
+
+    // Integrate BluetoothManager with BluetoothAudioPlayer
+    _bluetoothManager->setAudioPlayer(_bluetoothAudioPlayer.get());
 }
 
 HeadUnit::~HeadUnit() = default;
@@ -79,6 +84,8 @@ void HeadUnit::loadQml(const std::string& path, QGuiApplication& app) {
     _engine->rootContext()->setContextProperty(QStringLiteral("musicPlayer"), _musicPlayer.get());
     _engine->rootContext()->setContextProperty(QStringLiteral("gearClient"), _gearClient.get());
     _engine->rootContext()->setContextProperty(QStringLiteral("weatherService"), _weatherService.get());
+    _engine->rootContext()->setContextProperty(QStringLiteral("bluetoothManager"), _bluetoothManager.get());
+    _engine->rootContext()->setContextProperty(QStringLiteral("bluetoothAudioPlayer"), _bluetoothAudioPlayer.get());
 
     if (_weatherService) {
         QMetaObject::invokeMethod(_weatherService.get(), &WeatherService::fetchWeather, Qt::QueuedConnection);

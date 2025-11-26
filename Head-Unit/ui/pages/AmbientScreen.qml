@@ -147,24 +147,24 @@ Item {
 
                 RowLayout {
                     anchors.fill: parent
-                    anchors.margins: 24
-                    spacing: 24
+                    anchors.margins: 20
+                    spacing: 20
 
                     ColumnLayout {
                         Layout.fillWidth: true
                         Layout.fillHeight: true
-                        spacing: 16
+                        spacing: 12
 
                         Text {
                             text: qsTr("Preview")
                             color: "#ffffff"
-                            font.pixelSize: 16
+                            font.pixelSize: 14
                         }
 
                         Rectangle {
                             Layout.fillWidth: true
                             Layout.fillHeight: true
-                            radius: 20
+                            radius: 16
                             color: "#0f0f0f"
                             border.color: "#333333"
                             border.width: 1
@@ -275,19 +275,19 @@ Item {
                         Text {
                             text: qsTr("Zones")
                             color: "#ffffff"
-                            font.pixelSize: 16
+                            font.pixelSize: 14
                         }
 
                         RowLayout {
                             Layout.fillWidth: true
-                            spacing: 8
+                            spacing: 6
 
                             Repeater {
                                 model: zones
 
                                 Button {
                                     Layout.fillWidth: true
-                                    Layout.preferredHeight: 50
+                                    Layout.preferredHeight: 40
 
                                     background: Rectangle {
                                         radius: 12
@@ -301,18 +301,18 @@ Item {
                                     }
 
                                     contentItem: RowLayout {
-                                        spacing: 6
+                                        spacing: 4
 
                                         Text {
                                             text: modelData.icon
-                                            font.pixelSize: 16
+                                            font.pixelSize: 14
                                             Layout.alignment: Qt.AlignHCenter
                                         }
 
                                         Text {
                                             text: modelData.name
                                             color: "#ffffff"
-                                            font.pixelSize: 12
+                                            font.pixelSize: 10
                                             Layout.alignment: Qt.AlignHCenter
                                         }
                                     }
@@ -324,33 +324,33 @@ Item {
                     }
 
                     ColumnLayout {
-                        Layout.preferredWidth: 360
+                        Layout.preferredWidth: 280
                         Layout.fillHeight: true
-                        spacing: 28
+                        spacing: 20
 
                         ColumnLayout {
                             Layout.fillWidth: true
-                            spacing: 12
+                            spacing: 10
 
                             Text {
                                 text: qsTr("Color Presets")
                                 color: "#ffffff"
-                                font.pixelSize: 16
+                                font.pixelSize: 14
                             }
 
                             GridLayout {
                                 Layout.fillWidth: true
                                 columns: 4
-                                rowSpacing: 12
-                                columnSpacing: 12
+                                rowSpacing: 8
+                                columnSpacing: 8
 
                                 Repeater {
                                     model: colorPresets
 
                                     Rectangle {
-                                        Layout.preferredWidth: 70
-                                        Layout.preferredHeight: 70
-                                        radius: 14
+                                        Layout.preferredWidth: 56
+                                        Layout.preferredHeight: 56
+                                        radius: 12
 
                                         gradient: Gradient {
                                             GradientStop { position: 0.0; color: modelData.gradient[0] }
@@ -377,7 +377,7 @@ Item {
 
                         ColumnLayout {
                             Layout.fillWidth: true
-                            spacing: 12
+                            spacing: 10
 
                             RowLayout {
                                 Layout.fillWidth: true
@@ -385,7 +385,7 @@ Item {
                                 Text {
                                     text: qsTr("Brightness")
                                     color: "#ffffff"
-                                    font.pixelSize: 16
+                                    font.pixelSize: 14
                                 }
 
                                 Item { Layout.fillWidth: true }
@@ -393,7 +393,7 @@ Item {
                                 Text {
                                     text: Math.round(currentBrightness) + "%"
                                     color: "#999999"
-                                    font.pixelSize: 15
+                                    font.pixelSize: 13
                                 }
                             }
 
@@ -444,17 +444,17 @@ Item {
 
                         ColumnLayout {
                             Layout.fillWidth: true
-                            spacing: 10
+                            spacing: 8
 
                             Text {
                                 text: qsTr("Quick Actions")
                                 color: "#ffffff"
-                                font.pixelSize: 16
+                                font.pixelSize: 14
                             }
 
                             RowLayout {
                                 Layout.fillWidth: true
-                                spacing: 8
+                                spacing: 6
 
                                 Repeater {
                                     model: [
@@ -465,7 +465,7 @@ Item {
 
                                     Button {
                                         Layout.fillWidth: true
-                                        Layout.preferredHeight: 48
+                                        Layout.preferredHeight: 40
 
                                         background: Rectangle {
                                             radius: 12
@@ -477,7 +477,7 @@ Item {
                                         contentItem: Text {
                                             text: modelData.label
                                             color: "#ffffff"
-                                            font.pixelSize: 13
+                                            font.pixelSize: 12
                                             horizontalAlignment: Text.AlignHCenter
                                             verticalAlignment: Text.AlignVCenter
                                         }

@@ -21,9 +21,12 @@ find_package(Qt6 6.5 REQUIRED COMPONENTS
     Widgets
     Qml
     Quick
+    QuickControls2
+    Core5Compat
     Multimedia
     Network
     DBus
+    Bluetooth
 )
 
 qt_standard_project_setup()
@@ -37,6 +40,9 @@ set(HEADUNIT_SOURCES
     src/backend/music/music_player.cpp
     src/backend/gear/gear_client.cpp
     src/backend/weather/weather_service.cpp
+    src/backend/bluetooth/bluetooth_manager.cpp
+    src/backend/bluetooth/bluetooth_audio_player.cpp
+    src/backend/bluetooth/bluetooth_agent.cpp
 )
 
 set(HEADUNIT_HEADERS
@@ -45,6 +51,9 @@ set(HEADUNIT_HEADERS
     src/backend/music/music_player.h
     src/backend/gear/gear_client.h
     src/backend/weather/weather_service.h
+    src/backend/bluetooth/bluetooth_manager.h
+    src/backend/bluetooth/bluetooth_audio_player.h
+    src/backend/bluetooth/bluetooth_agent.h
 )
 
 qt_add_executable(HeadUnitApp
@@ -64,6 +73,7 @@ qt_add_qml_module(HeadUnitApp
         ui/pages/MusicScreen.qml
         ui/pages/AmbientScreen.qml
         ui/pages/ClimateScreen.qml
+        ui/pages/BluetoothScreen.qml
     SOURCES
         ${HEADUNIT_SOURCES}
         ${HEADUNIT_HEADERS}
@@ -81,9 +91,12 @@ target_link_libraries(HeadUnitApp
         Qt6::Widgets
         Qt6::Qml
         Qt6::Quick
+        Qt6::QuickControls2
+        Qt6::Core5Compat
         Qt6::Multimedia
         Qt6::Network
         Qt6::DBus
+        Qt6::Bluetooth
 )
 
 install(TARGETS HeadUnitApp

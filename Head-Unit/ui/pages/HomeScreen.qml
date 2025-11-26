@@ -10,6 +10,7 @@ Item {
     signal openMusic()
     signal openAmbient()
     signal openClimate()
+    signal openBluetooth()
     signal gearChanged(string gear)
 
     property var musicPlayer
@@ -26,9 +27,10 @@ Item {
     }
 
     property string currentTrack: musicPlayer && musicPlayer.currentTrack ? musicPlayer.currentTrack : ""
+    property bool isPlaying: musicPlayer && musicPlayer.playing
 
-    readonly property string currentTrackTitle: formatTrackTitle(currentTrack)
-    readonly property string currentTrackArtist: formatTrackArtist(currentTrack)
+    readonly property string currentTrackTitle: isPlaying && currentTrack ? formatTrackTitle(currentTrack) : qsTr("Tap to play music")
+    readonly property string currentTrackArtist: isPlaying && currentTrack ? formatTrackArtist(currentTrack) : qsTr("No track playing")
 
     function driveModeToGear(mode) {
         if (!mode)
@@ -155,7 +157,7 @@ Item {
             GridLayout {
                 anchors.fill: parent
                 columns: 3
-                rows: 2
+                rows: 3
                 columnSpacing: 16
                 rowSpacing: 16
 
@@ -385,6 +387,83 @@ Item {
 
                     Item { Layout.fillHeight: true }
                 }
+                }
+
+                Rectangle {
+                    Layout.columnSpan: 2
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: 140
+                    radius: 16
+                    color: bluetoothMouse.containsMouse ? "#252525" : "#1a1a1a"
+                    border.color: "#333333"
+                    border.width: 1
+
+                    Behavior on color {
+                        ColorAnimation { duration: 200 }
+                    }
+
+                    MouseArea {
+                        id: bluetoothMouse
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: homeScreen.openBluetooth()
+                    }
+
+                    RowLayout {
+                        anchors.fill: parent
+                        anchors.margins: 16
+                        spacing: 16
+
+                        Rectangle {
+                            width: 100
+                            height: 100
+                            radius: 12
+                            gradient: Gradient {
+                                GradientStop { position: 0.0; color: "#3b82f6" }
+                                GradientStop { position: 1.0; color: "#8b5cf6" }
+                            }
+
+                            Text {
+                                anchors.centerIn: parent
+                                text: "📱"
+                                font.pixelSize: 44
+                            }
+                        }
+
+                        ColumnLayout {
+                            Layout.fillWidth: true
+                            spacing: 6
+
+                            Text {
+                                text: qsTr("Bluetooth")
+                                color: "#ffffff"
+                                font.pixelSize: 18
+                            }
+
+                            Text {
+                                text: qsTr("Connect your devices")
+                                color: "#cccccc"
+                                font.pixelSize: 15
+                                elide: Text.ElideRight
+                            }
+
+                            Text {
+                                text: qsTr("Manage connections")
+                                color: "#666666"
+                                font.pixelSize: 13
+                                elide: Text.ElideRight
+                            }
+
+                            Item { Layout.fillHeight: true }
+                        }
+
+                        Text {
+                            text: "›"
+                            color: "#666666"
+                            font.pixelSize: 32
+                        }
+                    }
                 }
             }
         }

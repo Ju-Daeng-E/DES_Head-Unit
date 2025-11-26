@@ -2,9 +2,21 @@
 
 #include <QDebug>
 
-int main(int argc, char *argv[]) {
+#include <QGuiApplication>
+#include <QQmlApplicationEngine>
+
+#include <memory>
+
+#include "error.h"
+#include "ViewModel.h"
+#include "module/SharedMemory.h"
+#include "module/GearManager.h"
+#include "module/BatteryMonitor.h"
+
+
+int main(int argc, char *argv[])
+{
 	int appExit = EXIT_FAILURE;
-	
 	try {
 		QGuiApplication app(argc, argv);
 

@@ -1,7 +1,8 @@
 SUMMARY = "Qt 6 instrument cluster application"
 LICENSE = "CLOSED"
 
-SRC_URI = "file://instrument-cluster.service"
+SRC_URI = "file://instrument-cluster.service \
+"
 
 S = "${WORKDIR}/InstrumentCluster"
 
@@ -13,9 +14,11 @@ DEPENDS = "\
     qtbase \
     qtdeclarative \
     qtdeclarative-native \
-    qtwayland \
     qtmultimedia \
+    qtwayland \
+    qtwayland-native \
     qtshadertools-native \
+    wayland \
 "
 
 RDEPENDS:${PN} = "\
@@ -24,6 +27,7 @@ RDEPENDS:${PN} = "\
     qtdeclarative-plugins \
     qtdeclarative-qmlplugins \
     qtmultimedia \
+    weston \
 "
 
 do_prepare_sources() {

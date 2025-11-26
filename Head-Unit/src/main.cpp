@@ -11,8 +11,8 @@ int main(int argc, char *argv[]) {
     try {
         // Set environment variable for debugging QML
         qputenv("QT_DEBUG_PLUGINS", "1");
-        qputenv("QT_QPA_PLATFORM", "xcb"); // Force X11 backend instead of Wayland
-        
+        // Platform backend (xcb/wayland/eglfs) is controlled by systemd Environment= settings
+
         QApplication app(argc, argv);
 
         HeadUnit headUnit;
