@@ -24,32 +24,20 @@ Item {
 
     LeftCluster {
         id: leftCluster
-        // Use anchors instead of absolute positioning
-        anchors {
-            left: parent.left
-            // 70/1920 ≈ 0.036
-            top: parent.top
-            // 205/1080 ≈ 0.19
-        }
-        // Scale the cluster size relative to parent
-        width: parent.width * 0.42  // Approximate ratio
+        anchors.left: parent.left
+        anchors.leftMargin: parent.width * 0.024    // roughly 46px at 1920
+        anchors.verticalCenter: parent.verticalCenter
+        width: parent.width * 0.42
         height: parent.height * 0.69
-        anchors.leftMargin: 23
-        anchors.topMargin: 91
 
         speed: actualSpeed
     }
 
     RightCluster {
         id: rightCluster
-        // Use anchors for right positioning
-        anchors {
-            right: parent.right
-            rightMargin: parent.width * 0.046  // (1920-1027-800)/1920 ≈ 0.046
-            top: parent.top
-            topMargin: parent.height * 0.19    // Same as left cluster
-        }
-        // Scale the cluster size relative to parent
+        anchors.right: parent.right
+        anchors.rightMargin: parent.width * 0.046   // (1920-1027-800)/1920 ≈ 0.046
+        anchors.verticalCenter: parent.verticalCenter
         width: parent.width * 0.42
         height: parent.height * 0.69
 
@@ -61,7 +49,7 @@ Item {
         anchors {
             left: leftCluster.right
             right: rightCluster.left
-            top: leftCluster.bottom
+            verticalCenter: parent.verticalCenter
         }
 
         Gear {
@@ -73,10 +61,10 @@ Item {
 
             gear: actualGear
         }
-        height: parent.height* 0.12
+        height: parent.height * 0.12
         anchors.leftMargin: 3
         anchors.rightMargin: -3
-        anchors.topMargin: -80  //슬롯 높이
+        anchors.verticalCenterOffset: parent.height * 0.33
     }
 
 }
