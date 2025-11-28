@@ -1,1 +1,2 @@
-SUBSYSTEM=="net", DEVPATH=="/devices/platform/soc/3f204000.spi/spi_master/spi0/spi0.0/net/can0", RUN+="/sbin/ip link set can0 up type can bitrate 500000"
+SUBSYSTEM=="net", KERNEL=="can0", RUN+="/sbin/ip link set can0 up type can bitrate 500000"
+SUBSYSTEM=="net", KERNEL=="can1", RUN+="/sbin/ip link set can1 up type can bitrate 500000"
