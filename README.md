@@ -59,58 +59,538 @@
 
 ## 🏛️ System Architecture
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                     DES Cockpit System                          │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  ┌─────────────────┐              ┌─────────────────┐          │
-│  │   Head-Unit     │              │   Instrument    │          │
-│  │   (Qt 6 QML)    │◄───D-Bus────►│     Cluster     │          │
-│  │                 │              │   (Qt 6 QML)    │          │
-│  │  • Navigation   │              │  • Speed        │          │
-│  │  • Media Player │              │  • RPM          │          │
-│  │  • Climate      │              │  • Gear Status  │          │
-│  │  • Bluetooth    │              │  • Warnings     │          │
-│  └────────┬────────┘              └────────┬────────┘          │
-│           │                                │                   │
-│           └────────────┬───────────────────┘                   │
-│                        │                                       │
-│           ┌────────────▼────────────┐                          │
-│           │   Wayland (Weston)      │                          │
-│           │   Dual Display Output   │                          │
-│           └────────────┬────────────┘                          │
-│                        │                                       │
-│           ┌────────────▼────────────┐                          │
-│           │   Hardware Abstraction  │                          │
-│           │  • SocketCAN (can0/1)   │                          │
-│           │  • PulseAudio           │                          │
-│           │  • Bluetooth (BlueZ)    │                          │
-│           └─────────────────────────┘                          │
-│                                                                 │
-│                 Raspberry Pi 4 (ARM64)                          │
-│              Custom Yocto Linux (systemd)                       │
-└─────────────────────────────────────────────────────────────────┘
-```
-
-### Communication Flow
+### High-Level Architecture Overview
 
 ```
-Vehicle CAN Bus
-       │
-       ▼
-MCP2518FD (SPI)
-       │
-       ▼
-SocketCAN (can0/can1)
-       │
-       ▼
-Instrument Cluster ◄──D-Bus──► Head-Unit
-       │                            │
-       └────────┬───────────────────┘
-                │
-                ▼
-        User Interface
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                          DES Automotive Cockpit System                          │
+│                          Raspberry Pi 4 (ARM64 / 1.5GHz)                        │
+│                       Yocto Linux (Scarthgap) + systemd                         │
+└─────────────────────────────────────────────────────────────────────────────────┘
+                                       │
+        ┌──────────────────────────────┼──────────────────────────────┐
+        │                              │                              │
+        ▼                              ▼                              ▼
+┌─────────────────┐          ┌─────────────────┐          ┌─────────────────┐
+│   Head-Unit     │          │   Instrument    │          │   PiRacer       │
+│   Application   │◄────────►│     Cluster     │◄────────►│  Controller     │
+│   (HDMI-0)      │  D-Bus   │   (HDMI-1)      │  D-Bus   │   Service       │
+└────────┬────────┘          └────────┬────────┘          └────────┬────────┘
+         │                            │                            │
+         └──────────────┬─────────────┴────────────┬───────────────┘
+                        │                          │
+                        ▼                          ▼
+              ┌───────────────────┐      ┌──────────────────┐
+              │  Wayland/Weston   │      │   Vehicle I/O    │
+              │  (GPU Compositor) │      │  • CAN Bus       │
+              └─────────┬─────────┘      │  • GPIO/I2C      │
+                        │                │  • Gamepad USB   │
+                        │                └────────┬─────────┘
+                        ▼                         │
+              ┌───────────────────┐               │
+              │  Display Output   │               │
+              │  • HDMI-0: 1024x600│              │
+              │  • HDMI-1: 1024x600│              │
+              └───────────────────┘               │
+                                                  │
+         ┌────────────────────────────────────────┘
+         │
+         ▼
+┌──────────────────────────────────────────────────────────────┐
+│                    Hardware Abstraction Layer                 │
+├──────────────────────────────────────────────────────────────┤
+│  • SocketCAN (can0/can1)  • PulseAudio    • BlueZ           │
+│  • ConnMan (WiFi/Eth)     • Plymouth      • systemd-udevd   │
+└──────────────────────────────────────────────────────────────┘
+```
+
+### Detailed Component Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                           HEAD-UNIT APPLICATION                         │
+│                            (Qt 6.5+ QML/C++)                            │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                         │
+│  ┌──────────────────────┐  ┌──────────────────────┐                   │
+│  │   UI Layer (QML)     │  │   Backend (C++)      │                   │
+│  ├──────────────────────┤  ├──────────────────────┤                   │
+│  │ • HomePage           │  │ • GearController     │                   │
+│  │ • NavigationPage     │  │   - D-Bus Client     │                   │
+│  │   - OSM Map Display  │  │   - Gear State Mgmt  │                   │
+│  │   - Route Calc       │  │                      │                   │
+│  │ • MediaPage          │  │ • MusicController    │                   │
+│  │   - Track List       │  │   - GStreamer Backend│                   │
+│  │   - Playback Control │  │   - Playlist Manager │                   │
+│  │ • BluetoothPage      │  │                      │                   │
+│  │   - Device Scan      │  │ • BluetoothManager   │                   │
+│  │   - Pairing          │  │   - BlueZ D-Bus API  │                   │
+│  │   - Audio Routing    │  │   - Device Discovery │                   │
+│  │ • SettingsPage       │  │                      │                   │
+│  │   - System Info      │  │ • WeatherService     │                   │
+│  │   - Display Settings │  │   - HTTP API Client  │                   │
+│  │   - Network Config   │  │   - JSON Parser      │                   │
+│  └──────────────────────┘  │                      │                   │
+│                            │ • VehicleInterface   │                   │
+│                            │   - CAN Frame Parser │                   │
+│                            │   - Speed/RPM Read   │                   │
+│                            └──────────────────────┘                   │
+│                                                                         │
+└────────────┬────────────────────────────────────────────────────────────┘
+             │
+             │ Qt Wayland Plugin (QPA)
+             │
+             ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│                      INSTRUMENT CLUSTER APPLICATION                     │
+│                            (Qt 6.5+ QML/C++)                            │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                         │
+│  ┌──────────────────────┐  ┌──────────────────────┐                   │
+│  │   UI Layer (QML)     │  │   Backend (C++)      │                   │
+│  ├──────────────────────┤  ├──────────────────────┤                   │
+│  │ • Speedometer        │  │ • GearController     │                   │
+│  │   - Digital Display  │  │   - D-Bus Server     │                   │
+│  │   - Analog Gauge     │  │   - Gear Validation  │                   │
+│  │ • RPM Gauge          │  │                      │                   │
+│  │   - Redline Warning  │  │ • CANReceiver        │                   │
+│  │ • Gear Indicator     │  │   - SocketCAN Read   │                   │
+│  │   - P/R/N/D/S        │  │   - Speed Data       │                   │
+│  │ • Warning Lights     │  │   - RPM Data         │                   │
+│  │   - Engine Check     │  │                      │                   │
+│  │   - Low Fuel         │  │ • SharedMemory       │                   │
+│  │   - Temperature      │  │   - Controller Data  │                   │
+│  │ • Turn Signals       │  │   - Sync Mechanism   │                   │
+│  │   - Left/Right       │  │                      │                   │
+│  └──────────────────────┘  └──────────────────────┘                   │
+│                                                                         │
+└────────────┬────────────────────────────────────────────────────────────┘
+             │
+             │ Qt Wayland Plugin (QPA)
+             │
+             ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│                      WAYLAND DISPLAY STACK                              │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                         │
+│  ┌───────────────────────────────────────────────────┐                 │
+│  │              Weston Compositor                    │                 │
+│  │              (Version 13.0+)                      │                 │
+│  ├───────────────────────────────────────────────────┤                 │
+│  │  • Output Manager                                 │                 │
+│  │    - HDMI-0: card0-HDMI-A-1 (1024x600@60Hz)      │                 │
+│  │    - HDMI-1: card0-HDMI-A-2 (1024x600@60Hz)      │                 │
+│  │  • Surface Manager                                │                 │
+│  │    - Window Positioning                           │                 │
+│  │    - Z-Order Management                           │                 │
+│  │  • Input Handler                                  │                 │
+│  │    - Libinput Integration                         │                 │
+│  │    - Touch/Mouse/Keyboard                         │                 │
+│  │  • Shell Interface                                │                 │
+│  │    - Desktop Shell (fullscreen apps)              │                 │
+│  └───────────────────────────────────────────────────┘                 │
+│                            │                                            │
+│                            ▼                                            │
+│  ┌───────────────────────────────────────────────────┐                 │
+│  │           KMS/DRM (Kernel Mode Setting)           │                 │
+│  │           vc4-kms-v3d Driver (VideoCore 4)        │                 │
+│  ├───────────────────────────────────────────────────┤                 │
+│  │  • Display Pipeline                               │                 │
+│  │    - CRTC (Display Controller)                    │                 │
+│  │    - Encoder (HDMI Transmitter)                   │                 │
+│  │    - Connector (Physical HDMI Port)               │                 │
+│  │  • Framebuffer Management                         │                 │
+│  │    - Double Buffering                             │                 │
+│  │    - Page Flipping                                │                 │
+│  │  • GPU Acceleration                               │                 │
+│  │    - OpenGL ES 2.0                                │                 │
+│  │    - GBM (Generic Buffer Management)              │                 │
+│  └───────────────────────────────────────────────────┘                 │
+│                                                                         │
+└─────────────────────────────────────────────────────────────────────────┘
+             │
+             ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│                      PIRACER CONTROLLER SERVICE                         │
+│                           (Python 3.12)                                 │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                         │
+│  ┌──────────────────────┐  ┌──────────────────────┐                   │
+│  │   Input Handler      │  │   Output Controller  │                   │
+│  ├──────────────────────┤  ├──────────────────────┤                   │
+│  │ • Gamepad Reader     │  │ • Motor Control      │                   │
+│  │   - USB HID Device   │  │   - PWM (PCA9685)    │                   │
+│  │   - Axis Mapping     │  │   - Servo Steering   │                   │
+│  │   - Button Events    │  │   - ESC Throttle     │                   │
+│  │ • Deadzone Filter    │  │                      │                   │
+│  │ • Reconnect Logic    │  │ • LED Control        │                   │
+│  │   - Auto-recovery    │  │   - Status Indicator │                   │
+│  │   - Retry Mechanism  │  │                      │                   │
+│  └──────────────────────┘  │ • Shared Memory      │                   │
+│                            │   - Gear State       │                   │
+│                            │   - Drive Mode       │                   │
+│                            │   - Speed Limit      │                   │
+│                            └──────────────────────┘                   │
+│                                                                         │
+└────────────┬────────────────────────────────────────────────────────────┘
+             │
+             │ I2C Bus (PCA9685)
+             │
+             ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│                   COMMUNICATION & MIDDLEWARE LAYER                      │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                         │
+│  ┌─────────────────────────────────────────────────────────────┐       │
+│  │                     D-Bus Message Bus                       │       │
+│  │                   (System + Session Bus)                    │       │
+│  ├─────────────────────────────────────────────────────────────┤       │
+│  │  Service: com.des.vehicle                                   │       │
+│  │  Object:  /com/des/vehicle/Gear                             │       │
+│  │  Interface: com.des.vehicle.Gear                            │       │
+│  │                                                              │       │
+│  │  Methods:                                                    │       │
+│  │  • GetGear() → uint8                                        │       │
+│  │  • RequestGear(gear: uint8, source: string)                │       │
+│  │                                                              │       │
+│  │  Signals:                                                    │       │
+│  │  • GearChanged(gear: uint8, source: string, time: uint32)  │       │
+│  │  • GearRequestRejected(gear: uint8, reason: string)        │       │
+│  └─────────────────────────────────────────────────────────────┘       │
+│                                                                         │
+│  ┌─────────────────────────────────────────────────────────────┐       │
+│  │                   SocketCAN Subsystem                       │       │
+│  │                  (Linux Kernel CAN Stack)                   │       │
+│  ├─────────────────────────────────────────────────────────────┤       │
+│  │  • can0: 500kbps (Primary Vehicle Bus)                     │       │
+│  │    - Speed Data (0x201)                                     │       │
+│  │    - RPM Data (0x202)                                       │       │
+│  │    - Temperature (0x203)                                    │       │
+│  │                                                              │       │
+│  │  • can1: 500kbps (Diagnostic Bus)                          │       │
+│  │    - OBD-II Requests                                        │       │
+│  │    - Error Codes                                            │       │
+│  │    - Sensor Data                                            │       │
+│  │                                                              │       │
+│  │  Driver: mcp251xfd (MCP2518FD Chip)                        │       │
+│  │  Interface: SPI0.0 @ 10MHz                                  │       │
+│  │  Interrupt: GPIO 25                                         │       │
+│  └─────────────────────────────────────────────────────────────┘       │
+│                                                                         │
+└─────────────────────────────────────────────────────────────────────────┘
+             │
+             ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│                      MULTIMEDIA & AUDIO STACK                           │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                         │
+│  ┌─────────────────────────────────────────────────────────────┐       │
+│  │                    PulseAudio Server                        │       │
+│  │                     (Version 17.0+)                         │       │
+│  ├─────────────────────────────────────────────────────────────┤       │
+│  │  • Audio Routing                                            │       │
+│  │    - Application Mixing                                     │       │
+│  │    - Volume Control                                         │       │
+│  │    - Device Selection                                       │       │
+│  │                                                              │       │
+│  │  • Bluetooth Audio (bluez-alsa)                            │       │
+│  │    - A2DP Sink (Music Playback)                            │       │
+│  │    - HSP/HFP Profile (Hands-free)                          │       │
+│  │    - AVRCP Control                                          │       │
+│  │                                                              │       │
+│  │  • ALSA Backend                                             │       │
+│  │    - Hardware Playback                                      │       │
+│  │    - Software Resampling                                    │       │
+│  └─────────────────────────────────────────────────────────────┘       │
+│                            │                                            │
+│                            ▼                                            │
+│  ┌─────────────────────────────────────────────────────────────┐       │
+│  │                   GStreamer Pipeline                        │       │
+│  │                    (Version 1.24+)                          │       │
+│  ├─────────────────────────────────────────────────────────────┤       │
+│  │  • Audio Codecs                                             │       │
+│  │    - MP3 (mad, mpg123)                                      │       │
+│  │    - AAC (faad)                                             │       │
+│  │    - FLAC (flac)                                            │       │
+│  │    - Vorbis (vorbis)                                        │       │
+│  │                                                              │       │
+│  │  • Plugins                                                   │       │
+│  │    - playbin (Auto-selection)                               │       │
+│  │    - pulsesink (Output)                                     │       │
+│  │    - volume (Gain Control)                                  │       │
+│  └─────────────────────────────────────────────────────────────┘       │
+│                                                                         │
+└─────────────────────────────────────────────────────────────────────────┘
+             │
+             ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│                   CONNECTIVITY & NETWORK LAYER                          │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                         │
+│  ┌─────────────────────────────────────────────────────────────┐       │
+│  │                     BlueZ Stack                             │       │
+│  │                  (Bluetooth 5.0+)                           │       │
+│  ├─────────────────────────────────────────────────────────────┤       │
+│  │  • Device Management                                        │       │
+│  │    - Adapter Control (hci0)                                 │       │
+│  │    - Device Discovery                                       │       │
+│  │    - Pairing/Bonding                                        │       │
+│  │                                                              │       │
+│  │  • Profiles                                                  │       │
+│  │    - A2DP (Audio)                                           │       │
+│  │    - AVRCP (Media Control)                                  │       │
+│  │    - HFP (Hands-free)                                       │       │
+│  │    - PBAP (Phonebook)                                       │       │
+│  │                                                              │       │
+│  │  • D-Bus API                                                │       │
+│  │    - org.bluez Interface                                    │       │
+│  └─────────────────────────────────────────────────────────────┘       │
+│                                                                         │
+│  ┌─────────────────────────────────────────────────────────────┐       │
+│  │                    ConnMan (Connection Manager)             │       │
+│  │                      (Version 1.42+)                        │       │
+│  ├─────────────────────────────────────────────────────────────┤       │
+│  │  • WiFi Management                                          │       │
+│  │    - Network Scanning                                       │       │
+│  │    - WPA2/WPA3 Authentication                              │       │
+│  │    - Auto-connect                                           │       │
+│  │                                                              │       │
+│  │  • Ethernet                                                  │       │
+│  │    - DHCP Client                                            │       │
+│  │    - Static IP Config                                       │       │
+│  │                                                              │       │
+│  │  • Services                                                  │       │
+│  │    - wifi-auto-enable.service                              │       │
+│  └─────────────────────────────────────────────────────────────┘       │
+│                                                                         │
+└─────────────────────────────────────────────────────────────────────────┘
+             │
+             ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│                    SYSTEM SERVICES & INIT                               │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                         │
+│  ┌─────────────────────────────────────────────────────────────┐       │
+│  │                    systemd (PID 1)                          │       │
+│  │                   (Version 255+)                            │       │
+│  ├─────────────────────────────────────────────────────────────┤       │
+│  │  Boot Sequence:                                             │       │
+│  │                                                              │       │
+│  │  1. sysinit.target                                          │       │
+│  │     • systemd-modules-load.service                         │       │
+│  │     • systemd-tmpfiles-setup.service                       │       │
+│  │     • systemd-sysctl.service                               │       │
+│  │                                                              │       │
+│  │  2. basic.target                                            │       │
+│  │     • systemd-udevd.service (Device Manager)               │       │
+│  │     • dbus.service (Message Bus)                           │       │
+│  │     • systemd-logind.service                               │       │
+│  │                                                              │       │
+│  │  3. multi-user.target                                       │       │
+│  │     • can0.service (CAN0 Interface)                        │       │
+│  │     • can1.service (CAN1 Interface)                        │       │
+│  │     • pulseaudio.service (Audio Server)                    │       │
+│  │     • bluetooth.service (BlueZ Daemon)                     │       │
+│  │     • bluealsa.service (BT Audio Bridge)                   │       │
+│  │     • connman.service (Network Manager)                    │       │
+│  │     • wifi-auto-enable.service                             │       │
+│  │     • piracer-controller.service                           │       │
+│  │                                                              │       │
+│  │  4. graphical.target                                        │       │
+│  │     • plymouth.service (Boot Splash)                       │       │
+│  │     • plymouth-quit-wait.service                           │       │
+│  │     • weston.service (Wayland Compositor)                  │       │
+│  │     • headunit.service (Head-Unit App)                     │       │
+│  │       - After: weston.service                              │       │
+│  │       - Requires: weston.service                           │       │
+│  │     • instrument-cluster.service (Cluster App)             │       │
+│  │       - After: weston.service, piracer-controller.service │       │
+│  │       - Requires: weston.service                           │       │
+│  │     • rfkill-unblock.service (Bluetooth Enable)            │       │
+│  └─────────────────────────────────────────────────────────────┘       │
+│                                                                         │
+│  ┌─────────────────────────────────────────────────────────────┐       │
+│  │                      Plymouth                               │       │
+│  │                  (Boot Splash Screen)                       │       │
+│  ├─────────────────────────────────────────────────────────────┤       │
+│  │  • Boot Animation                                           │       │
+│  │  • Logo Display                                             │       │
+│  │  • Smooth Transition to Weston                             │       │
+│  │  • Quit Timer: 10s (Full boot video)                       │       │
+│  └─────────────────────────────────────────────────────────────┘       │
+│                                                                         │
+└─────────────────────────────────────────────────────────────────────────┘
+             │
+             ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│                      HARDWARE LAYER                                     │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                         │
+│  ┌────────────────────┐  ┌────────────────────┐  ┌──────────────────┐  │
+│  │   Display Output   │  │   CAN Interface    │  │   I2C Devices    │  │
+│  ├────────────────────┤  ├────────────────────┤  ├──────────────────┤  │
+│  │ • HDMI-0           │  │ • MCP2518FD Chip   │  │ • PCA9685 PWM    │  │
+│  │   - BCM2711 HDMI0  │  │   - SPI0.0 CS0     │  │   - Servo Motor  │  │
+│  │   - 1024x600@60Hz  │  │   - 40MHz Clock    │  │   - ESC Control  │  │
+│  │                    │  │   - GPIO25 INT     │  │                  │  │
+│  │ • HDMI-1           │  │                    │  │ • OLED Display   │  │
+│  │   - BCM2711 HDMI1  │  │ • CAN Transceiver  │  │   - SSD1306      │  │
+│  │   - 1024x600@60Hz  │  │   - TJA1051/SN65   │  │   - 128x64       │  │
+│  │                    │  │   - 120Ω Termination│  │                  │  │
+│  │ • GPU Memory: 128MB│  │   - Differential   │  │ • INA219 Sensor  │  │
+│  │ • VC4 3D Driver    │  │     Signaling      │  │   - Current      │  │
+│  └────────────────────┘  └────────────────────┘  └──────────────────┘  │
+│                                                                         │
+│  ┌────────────────────┐  ┌────────────────────┐  ┌──────────────────┐  │
+│  │   USB Interfaces   │  │   GPIO Pins        │  │   Power Mgmt     │  │
+│  ├────────────────────┤  ├────────────────────┤  ├──────────────────┤  │
+│  │ • USB 2.0 x2       │  │ • GPIO 25: CAN INT │  │ • 5V 3A PSU      │  │
+│  │ • USB 3.0 x2       │  │ • GPIO 2/3: I2C SDA│  │ • Under-voltage  │  │
+│  │ • Gamepad Input    │  │                SCL │  │   Detection      │  │
+│  │ • USB Storage      │  │ • GPIO 14/15: UART │  │ • Thermal Mgmt   │  │
+│  └────────────────────┘  └────────────────────┘  └──────────────────┘  │
+│                                                                         │
+│  ┌────────────────────────────────────────────────────────────┐        │
+│  │              Raspberry Pi 4 Model B                        │        │
+│  │  • CPU: Broadcom BCM2711 (ARM Cortex-A72 @ 1.5GHz x4)     │        │
+│  │  • RAM: 4GB LPDDR4-3200                                    │        │
+│  │  • GPU: VideoCore VI @ 500MHz                              │        │
+│  │  • Storage: microSD (32GB+)                                │        │
+│  │  • Ethernet: Gigabit (BCM54213PE)                          │        │
+│  │  • WiFi: 802.11ac (2.4/5GHz)                               │        │
+│  │  • Bluetooth: 5.0 BLE                                      │        │
+│  └────────────────────────────────────────────────────────────┘        │
+│                                                                         │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+### Data Flow Diagram
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                         REAL-TIME DATA FLOW                             │
+└─────────────────────────────────────────────────────────────────────────┘
+
+1. Vehicle Telemetry Flow:
+
+   Physical CAN Bus (Vehicle)
+        │ 500kbps differential signaling
+        ▼
+   MCP2518FD Controller (SPI0.0)
+        │ SPI @ 10MHz
+        ▼
+   SocketCAN Kernel Driver (can0/can1)
+        │ AF_CAN socket
+        ▼
+   Instrument Cluster C++ Backend
+        │ CAN frame parsing (0x201, 0x202, 0x203)
+        ▼
+   Qt QML Properties (QProperty)
+        │ Property binding
+        ▼
+   Dashboard UI Update (60fps)
+
+
+2. Gear Change Request Flow:
+
+   Head-Unit UI (Gear Button Press)
+        │ QML signal
+        ▼
+   GearController::requestGear()
+        │ D-Bus method call
+        ▼
+   D-Bus System Bus (/com/des/vehicle/Gear)
+        │ Inter-process communication
+        ▼
+   Instrument Cluster GearController::RequestGear()
+        │ Validation logic
+        ▼
+   Shared Memory Write (/dev/shm/piracer_mode)
+        │ POSIX shared memory
+        ▼
+   PiRacer Controller (Python)
+        │ Read mode change
+        ▼
+   I2C Write to PCA9685
+        │ PWM signal generation
+        ▼
+   Servo Motor (Physical Gear Actuator)
+        │
+        ▼
+   D-Bus Signal: GearChanged()
+        │ Broadcast to all listeners
+        ▼
+   Head-Unit & Cluster UI Update
+
+
+3. Bluetooth Audio Flow:
+
+   Bluetooth Device (Smartphone)
+        │ A2DP audio stream
+        ▼
+   BlueZ Stack (hci0 interface)
+        │ Bluetooth profiles
+        ▼
+   bluez-alsa (ALSA PCM device)
+        │ bluealsa-aplay service
+        ▼
+   PulseAudio Server (mixing)
+        │ Volume control, routing
+        ▼
+   ALSA Hardware Layer
+        │ DMA buffer
+        ▼
+   BCM2711 Audio Output (HDMI/3.5mm)
+
+
+4. Display Rendering Flow:
+
+   Qt Quick Scene Graph
+        │ QSGNode tree
+        ▼
+   Qt RHI (Rendering Hardware Interface)
+        │ OpenGL ES 2.0 commands
+        ▼
+   Mesa EGL + vc4 Driver
+        │ GPU command buffer
+        ▼
+   VideoCore VI GPU
+        │ 3D rendering, compositing
+        ▼
+   KMS/DRM Framebuffer
+        │ GBM buffer swap
+        ▼
+   Display Pipeline (CRTC → Encoder → Connector)
+        │ Scanout engine
+        ▼
+   HDMI Physical Output (1024x600@60Hz)
+
+
+5. System Boot Flow:
+
+   GPU Firmware (start4.elf)
+        │ Read config.txt
+        ▼
+   Linux Kernel Boot (Image)
+        │ Device tree (bcm2711-rpi-4-b.dtb + overlays)
+        ▼
+   systemd (PID 1)
+        │ Target chain: sysinit → basic → multi-user → graphical
+        ▼
+   Plymouth Splash (10s animation)
+        │
+        ├──► Hardware Services (CAN, Audio, Network)
+        │    └──► Parallel initialization
+        │
+        └──► Weston Compositor Start
+             └──► Wait for DRM/KMS ready
+                  ▼
+   Applications Launch (Headunit + Cluster)
+        │ Delayed start (1s after Weston)
+        ▼
+   Plymouth Quit (Smooth fade out)
+        ▼
+   User Interface Ready (~30s total boot time)
 ```
 
 ---
