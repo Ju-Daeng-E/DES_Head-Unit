@@ -62,46 +62,111 @@
 ### High-Level Architecture Overview
 
 ```
-┌─────────────────────────────────────────────────────────────────────────────────┐
-│                          DES Automotive Cockpit System                          │
-│                          Raspberry Pi 4 (ARM64 / 1.5GHz)                        │
-│                       Yocto Linux (Scarthgap) + systemd                         │
-└─────────────────────────────────────────────────────────────────────────────────┘
-                                       │
-        ┌──────────────────────────────┼──────────────────────────────┐
-        │                              │                              │
-        ▼                              ▼                              ▼
-┌─────────────────┐          ┌─────────────────┐          ┌─────────────────┐
-│   Head-Unit     │          │   Instrument    │          │   PiRacer       │
-│   Application   │◄────────►│     Cluster     │◄────────►│  Controller     │
-│   (HDMI-0)      │  D-Bus   │   (HDMI-1)      │  D-Bus   │   Service       │
-└────────┬────────┘          └────────┬────────┘          └────────┬────────┘
-         │                            │                            │
-         └──────────────┬─────────────┴────────────┬───────────────┘
-                        │                          │
-                        ▼                          ▼
-              ┌───────────────────┐      ┌──────────────────┐
-              │  Wayland/Weston   │      │   Vehicle I/O    │
-              │  (GPU Compositor) │      │  • CAN Bus       │
-              └─────────┬─────────┘      │  • GPIO/I2C      │
-                        │                │  • Gamepad USB   │
-                        │                └────────┬─────────┘
-                        ▼                         │
-              ┌───────────────────┐               │
-              │  Display Output   │               │
-              │  • HDMI-0: 1024x600│              │
-              │  • HDMI-1: 1024x600│              │
-              └───────────────────┘               │
-                                                  │
-         ┌────────────────────────────────────────┘
-         │
-         ▼
-┌──────────────────────────────────────────────────────────────┐
-│                    Hardware Abstraction Layer                 │
-├──────────────────────────────────────────────────────────────┤
-│  • SocketCAN (can0/can1)  • PulseAudio    • BlueZ           │
-│  • ConnMan (WiFi/Eth)     • Plymouth      • systemd-udevd   │
-└──────────────────────────────────────────────────────────────┘
+┌───────────────────────────────────────────────────────────────────────────────────────────┐
+│                            DES Automotive Cockpit System                                  │
+│                       Raspberry Pi 4 Model B (ARM64 Cortex-A72 @ 1.5GHz)                 │
+│                         Yocto Linux (Poky Scarthgap) + systemd init                       │
+└───────────────────────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────────────────────┐
+│                              APPLICATION LAYER (Qt 6.5+ / systemd)                          │
+├─────────────────────────┬──────────────────────────┬────────────────────────────────────────┤
+│                         │                          │                                        │
+│  ┌─────────────────┐    │   ┌──────────────────┐   │   ┌──────────────────────────────┐    │
+│  │  HeadUnitApp    │    │   │   appIC          │   │   │  piracer-controller.py       │    │
+│  │  (/usr/bin/)    │◄───┼──►│  (/usr/bin/)     │◄──┼──►│  (Python3 Gamepad Service)   │    │
+│  │                 │    │   │                  │   │   │                              │    │
+│  │  • Qt 6 QML UI  │    │   │  • Qt 6 QML UI   │   │   │  • USB Gamepad Input         │    │
+│  │  • Wayland Client│   │   │  • Wayland Client│   │   │  • Throttle/Steering Control │    │
+│  │  • D-Bus Client │    │   │  • D-Bus Client  │   │   │  • D-Bus com.des.vehicle     │    │
+│  │  • HDMI-A-1     │    │   │  • HDMI-A-2      │   │   │  • CAN Bus Transmission      │    │
+│  │                 │    │   │                  │   │   │                              │    │
+│  │  Backend C++:   │    │   │  Backend C++:    │   │   │  Dependencies:               │    │
+│  │  - Bluetooth    │    │   │  - Gear Display  │   │   │  - des-piracer-vehicles.py   │    │
+│  │  - Music Player │    │   │  - Speed Display │   │   │  - Adafruit PCA9685          │    │
+│  │  - Weather API  │    │   │  - CAN Data Rx   │   │   │  - Adafruit INA219           │    │
+│  │  - Gear Tx/Rx   │    │   │  - Battery Status│   │   │  - Adafruit SSD1306 (OLED)   │    │
+│  │  - Navigation   │    │   │                  │   │   │                              │    │
+│  └────────┬────────┘    │   └─────────┬────────┘   │   └──────────────┬───────────────┘    │
+│           │             │             │            │                  │                    │
+│  systemd: headunit      │   systemd: instrument    │   systemd: piracer-controller         │
+│           .service      │             -cluster     │                  .service             │
+│  Requires: weston       │             .service     │   After: can1.service                 │
+│                         │   Requires: weston       │                                        │
+└─────────┬───────────────┴─────────────┬────────────┴──────────────────┬────────────────────┘
+          │                             │                               │
+          │                             │                               │
+          └─────────────────────────────┼───────────────────────────────┘
+                                        │
+┌───────────────────────────────────────┼────────────────────────────────────────────────────┐
+│                                 MIDDLEWARE LAYER                                           │
+├─────────────────────┬─────────────────┴───────────────┬──────────────────────────────────┤
+│                     │                                 │                                  │
+│  ┌──────────────┐   │  ┌──────────────────────────┐   │   ┌──────────────────────────┐  │
+│  │  D-Bus       │   │  │  Wayland/Weston          │   │   │  Connectivity Stack      │  │
+│  │  System Bus  │   │  │  weston.service          │   │   │                          │  │
+│  │              │   │  │                          │   │   │  • ConnMan (WiFi/Eth)    │  │
+│  │  Interface:  │   │  │  • VC4 KMS Driver        │   │   │    - wifi-auto-enable    │  │
+│  │  com.des     │   │  │  • Dual HDMI Output      │   │   │  • WPA Supplicant        │  │
+│  │   .vehicle   │   │  │  • GPU Compositing       │   │   │                          │  │
+│  │   .Gear      │   │  │  • XDG Shell Protocol    │   │   └──────────────────────────┘  │
+│  │              │   │  │  • DRM/KMS Backend       │   │                                  │
+│  │  Policy:     │   │  │  • libinput (Touch/USB)  │   │   ┌──────────────────────────┐  │
+│  │  /etc/dbus-1 │   │  │                          │   │   │  Audio Stack             │  │
+│  │   /system.d/ │   │  │  Config:                 │   │   │                          │  │
+│  │              │   │  │  /etc/xdg/weston/        │   │   │  • PulseAudio Server     │  │
+│  └──────────────┘   │  │   weston.ini             │   │   │    - pulseaudio.service  │  │
+│                     │  │                          │   │   │  • BlueZ-ALSA            │  │
+│                     │  │  Systemd Target:         │   │   │    - bluealsa.service    │  │
+│                     │  │  graphical.target        │   │   │    - bluealsa-aplay      │  │
+│                     │  └──────────────────────────┘   │   │  • ALSA Utils            │  │
+│                     │                                 │   │  • GStreamer 1.0         │  │
+│                     │                                 │   │                          │  │
+│                     │                                 │   │  Bluetooth:              │  │
+│                     │                                 │   │  • BlueZ 5               │  │
+│                     │                                 │   │  • rfkill-unblock        │  │
+│                     │                                 │   │  • bluetooth-class-fix   │  │
+│                     │                                 │   └──────────────────────────┘  │
+└─────────────────────┴─────────────────────────────────┴──────────────────────────────────┘
+                                        │
+┌───────────────────────────────────────┼────────────────────────────────────────────────────┐
+│                                 KERNEL & HAL LAYER                                         │
+├─────────────────────────────────────┬─┴───────────────┬──────────────────────────────────┤
+│                                     │                 │                                  │
+│  ┌──────────────────────────────┐   │  ┌───────────┐  │  ┌────────────────────────────┐  │
+│  │  SocketCAN Kernel Stack      │   │  │ Linux     │  │  │  Boot & Init               │  │
+│  │  linux-raspberrypi 6.6.63    │   │  │ Device    │  │  │                            │  │
+│  │                              │   │  │ Tree      │  │  │  • U-Boot Bootloader       │  │
+│  │  • MCP2518FD SPI Driver      │   │  │           │  │  │  • Device Tree Overlays:   │  │
+│  │    (Seeed CAN-FD HAT v2)     │   │  │ Overlays: │  │  │    - seeed-can-fd-hat-v2   │  │
+│  │  • can0 Interface (500kbps)  │   │  │  • vc4    │  │  │    - vc4-kms-v3d,noaudio   │  │
+│  │  • can1 Interface (500kbps)  │   │  │   -kms    │  │  │                            │  │
+│  │  • SPI0 CS0/CS1              │   │  │   -v3d    │  │  │  • Plymouth Boot Splash    │  │
+│  │  • Systemd Services:         │   │  │  • seeed  │  │  │    - plymouth-quit-wait    │  │
+│  │    - can0.service            │   │  │   -can    │  │  │    - psplash               │  │
+│  │    - can1.service            │   │  │   -fd     │  │  │                            │  │
+│  │                              │   │  │   -hat-v2 │  │  │  • systemd-udevd           │  │
+│  │  Module:                     │   │  │           │  │  │  • RPM Package Manager     │  │
+│  │  • i2c-dev (auto-load)       │   │  └───────────┘  │  │                            │  │
+│  └──────────────────────────────┘   │                 │  └────────────────────────────┘  │
+│                                     │                 │                                  │
+└─────────────────────────────────────┴─────────────────┴──────────────────────────────────┘
+                                        │
+┌───────────────────────────────────────┼────────────────────────────────────────────────────┐
+│                                 HARDWARE LAYER                                             │
+├────────────────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                            │
+│  ┌─────────────────┐  ┌──────────────┐  ┌─────────────────┐  ┌──────────────────────┐    │
+│  │ Raspberry Pi 4  │  │  CAN HAT     │  │  Display Out    │  │  I/O Interfaces      │    │
+│  │                 │  │              │  │                 │  │                      │    │
+│  │ • BCM2711 SoC   │  │ • MCP2518FD  │  │ • HDMI-A-1      │  │ • USB 2.0/3.0        │    │
+│  │ • VideoCore VI  │  │ • SPI Bus    │  │   (1024x600)    │  │   - Gamepad Input    │    │
+│  │   GPU (128MB)   │  │ • 12MHz Osc  │  │ • HDMI-A-2      │  │   - USB Audio        │    │
+│  │ • 4GB/8GB RAM   │  │ • 500kbps    │  │   (1024x600)    │  │ • GPIO 40-pin        │    │
+│  │                 │  │              │  │                 │  │ • I2C Bus            │    │
+│  └─────────────────┘  └──────────────┘  └─────────────────┘  └──────────────────────┘    │
+│                                                                                            │
+└────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ### Detailed Component Architecture
