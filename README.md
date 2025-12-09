@@ -10,7 +10,7 @@
 ---
 
 ## 📖 Overview
-
+![ferrari](./jj90.png)
 **DES Head-Unit** is a complete automotive cockpit system designed for embedded Linux environments. It combines a modern Qt 6-based user interface with a custom Yocto Linux distribution, providing:
 
 - **Dual Display Support**: Simultaneous head unit (main screen) and instrument cluster displays
